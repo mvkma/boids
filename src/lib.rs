@@ -1,7 +1,8 @@
 extern crate nalgebra as na;
 
+use kiddo::{KdTree, SquaredEuclidean};
 use nalgebra::Vector2;
-use rand::RngExt;
+use rand::{RngExt};
 use std::{f64, fmt};
 use wasm_bindgen::prelude::*;
 use web_sys::console;
@@ -19,53 +20,59 @@ pub struct Simulation {
     dt: f64,
     boids: Vec<Boid>,
     magnet: Vector2<f64>,
+    frame: u64,
 }
 
 #[wasm_bindgen]
 impl Boid {
     fn new() -> Self {
         let mut rng = rand::rng();
+        let x = rng.random_range(-1.0..2.0);
+        let y = rng.random_range(-1.0..2.0);
         let angle = rng.random_range(0.0..f64::consts::PI * 2.0);
 
-        let position = Vector2::new(rng.random(), rng.random());
+        let position = Vector2::new(x, y);
         let mut velocity = Vector2::new(angle.cos(), angle.sin());
         velocity.set_magnitude(0.01);
-        Self {
-            position,
-            velocity,
-        }
+
+        Self { position, velocity }
     }
 
     fn separation_cohesion_alignment(
-        &self,
+        &mut self,
+        tree: &KdTree<f64, 2>,
         others: &Vec<Boid>,
     ) -> (Vector2<f64>, Vector2<f64>, Vector2<f64>) {
-        let mut total_sep = Vector2::new(0.0, 0.0);
-        let mut total_pos = Vector2::new(0.0, 0.0);
-        let mut total_vel = Vector2::new(0.0, 0.0);
+        let within2 = tree.within_unsorted::<SquaredEuclidean>(self.position.as_ref(), 0.25 * 0.25);
+
+        let mut total_sep = Vector2::zeros();
+        let mut total_pos = Vector2::zeros();
+        let mut total_vel = Vector2::zeros();
 
         let mut count_sep = 0;
         let mut count_pos = 0;
         let mut count_vel = 0;
 
-        for other in others.iter() {
-            if other == self {
+        for neighbor in within2.iter() {
+            if neighbor.distance < 1e-10 {
                 continue;
             }
 
-            let diff = self.position - other.position;
-            let dist = diff.norm();
+            let other = &others[neighbor.item as usize];
 
-            if dist < 0.15 {
-                total_sep += diff.normalize() / dist;
+            if neighbor.distance < 0.15 * 0.15 {
+                let mut diff = self.position - other.position;
+                diff.set_magnitude(neighbor.distance.sqrt().recip());
+
+                total_sep += diff;
                 count_sep += 1;
 
                 total_vel += other.velocity;
                 count_vel += 1;
-            } else if dist < 0.55 {
-                total_pos += other.position;
-                count_pos += 1;
             }
+
+            total_pos += other.position;
+            count_pos += 1;
         }
 
         if count_sep > 0 {
@@ -88,32 +95,52 @@ impl Boid {
 #[wasm_bindgen]
 impl Simulation {
     pub fn tick(&mut self) {
+        if self.frame % 300 == 0 {
+            let mut rng = rand::rng();
+            self.magnet[0] = rng.random_range(-4.0..5.0);
+            self.magnet[1] = rng.random_range(-4.0..5.0);
+            console::log_1(&format!("{:?}", self.magnet).into());
+        }
         // update positions
         for boid in self.boids.iter_mut() {
             boid.position
                 .set_column(0, &(boid.position + self.dt * boid.velocity));
         }
 
-        // console::log_1(&format!("{:?}", self.magnet).into());
         // update velocities
         let others = self.boids.clone();
+        let tree = KdTree::from_iter(
+            others
+                .iter()
+                .enumerate()
+                .map(|(idx, b)| (*b.position.as_ref(), idx as u64)),
+        );
+
         for boid in self.boids.iter_mut() {
-            let (total_sep, total_pos, total_vel) = boid.separation_cohesion_alignment(&others);
-            let magnet_direction = self.magnet - boid.position;
+            let (total_sep, total_pos, total_vel) =
+                boid.separation_cohesion_alignment(&tree, &others);
+            let mut magnet_direction = self.magnet - boid.position;
+            magnet_direction.try_set_magnitude(magnet_direction.norm().recip(), 1.0e-5);
             let new_velocity = (boid.velocity
-                + 1.2 * total_sep
+                + 5.5 * total_sep
                 + 0.3 * total_pos
                 + 1.0 * total_vel
-                + 0.0005 * magnet_direction)
+                + 0.005 * magnet_direction.cap_magnitude(0.11))
                 .cap_magnitude(0.04);
 
             boid.velocity.set_column(0, &new_velocity);
         }
+
+        self.frame += 1;
     }
 
     pub fn set_magnet(&mut self, x: f64, y: f64) {
         self.magnet[0] = x;
         self.magnet[1] = y;
+    }
+
+    pub fn get_magnet(&self) -> *const f64 {
+        self.magnet.as_ptr()
     }
 
     pub fn num_boids(&self) -> usize {
@@ -128,7 +155,7 @@ impl Simulation {
         let boids = (0..num_boids).map(|_| Boid::new()).collect();
         let magnet = Vector2::new(0.5, 0.5);
 
-        Simulation { dt, boids, magnet }
+        Simulation { dt, boids, magnet, frame: 0 }
     }
 
     pub fn render(&self) -> String {
