@@ -1,17 +1,19 @@
 extern crate nalgebra as na;
 
 use kiddo::{KdTree, SquaredEuclidean};
-use nalgebra::Vector2;
-use rand::{RngExt};
+use nalgebra::SVector;
+use rand::RngExt;
 use std::{f64, fmt};
 use wasm_bindgen::prelude::*;
-use web_sys::console;
+use web_sys::{console};
+
+const D: usize = 2;
 
 #[wasm_bindgen]
 #[derive(Debug, PartialEq, Clone)]
 pub struct Boid {
-    position: Vector2<f64>,
-    velocity: Vector2<f64>,
+    position: SVector<f64, D>,
+    velocity: SVector<f64, D>,
 }
 
 #[wasm_bindgen]
@@ -19,7 +21,7 @@ pub struct Boid {
 pub struct Simulation {
     dt: f64,
     boids: Vec<Boid>,
-    magnet: Vector2<f64>,
+    magnet: SVector<f64, D>,
     frame: u64,
 }
 
@@ -27,12 +29,24 @@ pub struct Simulation {
 impl Boid {
     fn new() -> Self {
         let mut rng = rand::rng();
-        let x = rng.random_range(-1.0..2.0);
-        let y = rng.random_range(-1.0..2.0);
-        let angle = rng.random_range(0.0..f64::consts::PI * 2.0);
 
-        let position = Vector2::new(x, y);
-        let mut velocity = Vector2::new(angle.cos(), angle.sin());
+        let position =
+            SVector::<f64, D>::from_iterator((0..D).map(|_| rng.random_range(-1.0..2.0)));
+
+        let mut velocity = SVector::<f64, D>::zeros();
+        if D == 2 {
+            let phi = rng.random_range(0.0..f64::consts::PI * 2.0);
+            velocity[0] = phi.cos();
+            velocity[1] = phi.sin();
+        } else if D == 3 {
+            let phi = rng.random_range(0.0..f64::consts::PI * 2.0);
+            let theta = rng.random_range(0.0..f64::consts::PI);
+            velocity[0] = theta.sin() * phi.cos();
+            velocity[1] = theta.sin() * phi.sin();
+            velocity[2] = theta.cos();
+        } else {
+            velocity.fill_with(|| rand::random_range(-1.0..1.0));
+        }
         velocity.set_magnitude(0.01);
 
         Self { position, velocity }
@@ -40,14 +54,14 @@ impl Boid {
 
     fn separation_cohesion_alignment(
         &mut self,
-        tree: &KdTree<f64, 2>,
+        tree: &KdTree<f64, D>,
         others: &Vec<Boid>,
-    ) -> (Vector2<f64>, Vector2<f64>, Vector2<f64>) {
+    ) -> (SVector<f64, D>, SVector<f64, D>, SVector<f64, D>) {
         let within2 = tree.within_unsorted::<SquaredEuclidean>(self.position.as_ref(), 0.25 * 0.25);
 
-        let mut total_sep = Vector2::zeros();
-        let mut total_pos = Vector2::zeros();
-        let mut total_vel = Vector2::zeros();
+        let mut total_sep = SVector::<f64, D>::zeros();
+        let mut total_pos = SVector::<f64, D>::zeros();
+        let mut total_vel = SVector::<f64, D>::zeros();
 
         let mut count_sep = 0;
         let mut count_pos = 0;
@@ -96,11 +110,9 @@ impl Boid {
 impl Simulation {
     pub fn tick(&mut self) {
         if self.frame % 300 == 0 {
-            let mut rng = rand::rng();
-            self.magnet[0] = rng.random_range(-4.0..5.0);
-            self.magnet[1] = rng.random_range(-4.0..5.0);
-            console::log_1(&format!("{:?}", self.magnet).into());
+            self.magnet.fill_with(|| rand::random_range(-4.0..5.0));
         }
+
         // update positions
         for boid in self.boids.iter_mut() {
             boid.position
@@ -126,7 +138,7 @@ impl Simulation {
                 + 0.3 * total_pos
                 + 1.0 * total_vel
                 + 0.005 * magnet_direction.cap_magnitude(0.11))
-                .cap_magnitude(0.04);
+            .cap_magnitude(0.04);
 
             boid.velocity.set_column(0, &new_velocity);
         }
@@ -153,9 +165,14 @@ impl Simulation {
 
     pub fn new(dt: f64, num_boids: usize) -> Self {
         let boids = (0..num_boids).map(|_| Boid::new()).collect();
-        let magnet = Vector2::new(0.5, 0.5);
+        let magnet = SVector::<f64, D>::identity() * 0.5;
 
-        Simulation { dt, boids, magnet, frame: 0 }
+        Simulation {
+            dt,
+            boids,
+            magnet,
+            frame: 0,
+        }
     }
 
     pub fn render(&self) -> String {

@@ -10,20 +10,19 @@
         <script type="module">
          import init, { Simulation } from './pkg/boids.js';
 
+         function colormap(x) {
+             const v = Math.max(0, Math.min(255, ((x + 1) / 12 * 255).toFixed(0)));
+             return `rgb(${255 - v}, ${v}, 0)`;
+         }
+
          async function run() {
              const module = await init();
              console.log(module);
 
              const memory = module.memory;
-             const simulation = Simulation.new(1.0, 7000);
+             const simulation = Simulation.new(1.0, 1000);
              const canvas = document.querySelector("#canvas");
              const ctx = canvas.getContext("2d");
-
-             canvas.addEventListener("mousemove", (event) => {
-                 const x = event.offsetX / canvas.width * 2;
-                 const y = event.offsetY / canvas.height * 2;
-                 simulation.set_magnet(x, y);
-             });
 
              const toCanvasCoordinates = (x, y) => {
                  return [
@@ -51,6 +50,7 @@
                  ctx.beginPath();
 
                  const stride = 4;
+                 // const stride = 6;
                  const positionsAndVelocities = new Float64Array(
                      memory.buffer,
                      simulation.boids(),
@@ -59,10 +59,12 @@
 
                  for (let i = 0; i < simulation.num_boids(); i++) {
                      const [x, y, vx, vy] = positionsAndVelocities.slice(stride * i, stride * (i + 1));
+                     // const [x, y, z, vx, vy, vz] = positionsAndVelocities.slice(stride * i, stride * (i + 1));
                      const [cx, cy] = toCanvasCoordinates(x, y);
                      const [bx, by] = toCanvasCoordinates(x - 5 * vx, y - 5 * vy);
                      const r = 1.5;
 
+                     // ctx.strokeStyle = colormap(z);
                      ctx.moveTo(cx, cy)
                      ctx.arc(cx - r, cy, r, 0.0, 2.0 * Math.PI);
                      ctx.moveTo(bx, by);
