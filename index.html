@@ -1,0 +1,74 @@
+<html>
+    <head>
+        <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+        <title>Boids</title>
+    </head>
+    <body>
+        <h1>Boids!</h1>
+        <canvas width="600" height="600" id="canvas"></canvas>
+        <script type="module">
+         import init, { Simulation } from './pkg/boids.js';
+
+         async function run() {
+             const module = await init();
+             console.log(module);
+
+             const memory = module.memory;
+             const simulation = Simulation.new(0.5, 100);
+             const canvas = document.querySelector("#canvas");
+             const ctx = canvas.getContext("2d");
+
+             canvas.addEventListener("mousemove", (event) => {
+                 const x = event.offsetX / canvas.width * 2;
+                 const y = event.offsetY / canvas.height * 2;
+                 simulation.set_magnet(x, y);
+             });
+
+             const toCanvasCoordinates = (x, y) => {
+                 return [
+                     (x - 0.5) * canvas.width / 6 + canvas.width / 2,
+                     (y - 0.5) * canvas.height / 6 + canvas.height / 2,
+                 ];
+             }
+
+
+             ctx.fillStyle = "lightblue";
+
+             const renderLoop = () => {
+                 simulation.tick();
+
+                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+                 ctx.fillRect(0, 0, canvas.width, canvas.height);
+                 ctx.beginPath();
+
+                 const stride = 4;
+                 const positionsAndVelocities = new Float64Array(
+                     memory.buffer,
+                     simulation.boids(),
+                     simulation.num_boids() * stride,
+                 );
+
+                 for (let i = 0; i < simulation.num_boids(); i++) {
+                     const [x, y, vx, vy] = positionsAndVelocities.slice(stride * i, stride * (i + 1));
+                     const [cx, cy] = toCanvasCoordinates(x, y);
+                     const [bx, by] = toCanvasCoordinates(x - 5 * vx, y - 5 * vy);
+                     const r = 3.5;
+
+                     ctx.moveTo(cx, cy)
+                     ctx.arc(cx - r, cy, r, 0.0, 2.0 * Math.PI);
+                     ctx.moveTo(bx, by);
+                     ctx.lineTo(cx - r, cy);
+                 }
+
+                 ctx.stroke();
+
+                 requestAnimationFrame(() => renderLoop());
+             }
+
+             requestAnimationFrame(() => renderLoop());
+         }
+
+         run();
+        </script>
+    </body>
+</html>
