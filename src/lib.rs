@@ -7,7 +7,7 @@ use std::{f64, fmt};
 use wasm_bindgen::prelude::*;
 use web_sys::{console};
 
-const D: usize = 2;
+const D: usize = 3;
 
 #[wasm_bindgen]
 #[derive(Debug, PartialEq, Clone)]
