@@ -1,7 +1,7 @@
 import init, { Simulation } from './pkg/boids.js';
 
-import * as THREE from 'three/webgpu';
-//import * as THREE from 'three';
+//import * as THREE from 'three/webgpu';
+import * as THREE from 'three';
 import { mix, range, normalWorld, oscSine, time } from 'three/tsl';
 
 import { Inspector } from 'three/addons/inspector/Inspector.js';
@@ -67,13 +67,13 @@ function run3D(memory, simulation) {
     }
 
     function init() {
-				renderer = new THREE.WebGPURenderer( { antialias: true } );
-				//renderer = new THREE.WebGLRenderer( { antialias: true } );
+				//renderer = new THREE.WebGPURenderer( { antialias: true } );
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
 				renderer.shadowMap.enabled = true;
 				renderer.shadowMap.type = THREE.PCFShadowMap;
         renderer.setClearColor(new THREE.Color(0x000000));
         renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(800, 800);
+        renderer.setSize(1200, 800);
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
 				renderer.toneMappingExposure = 0.85;
         renderer.setAnimationLoop(animate);
@@ -81,17 +81,20 @@ function run3D(memory, simulation) {
 
         document.body.appendChild(renderer.domElement);
 
-        camera = new THREE.PerspectiveCamera(90, canvas.width / canvas.height, 0.1, 100);
+        camera = new THREE.PerspectiveCamera(60, canvas.width / canvas.height, 0.1, 100);
         camera.position.set(10, 10, 10);
+        //camera = new THREE.OrthographicCamera(-15, 15, 15, -15, 0.01, 100);
+        //camera.position.set(0, 10, 2);
+        camera.updateMatrix();
         camera.lookAt(0, 0, 0);
 
         scene = new THREE.Scene();
-        // scene.fog = new THREE.Fog(0x333333, 10, 15);
+        scene.fog = new THREE.FogExp2(0x333333, 0.01);
 
         const material = new THREE.MeshStandardMaterial();
         material.color = new THREE.Color("#049ef4");
         material.roughness = 0.6;
-        material.metalness = 1.0;
+        material.metalness = 0.9;
 
         const geometry = new THREE.CylinderGeometry( 0.1, 0.7, 5, 32, 2 );
         geometry.scale(0.09, 0.09, 0.09);
@@ -99,12 +102,13 @@ function run3D(memory, simulation) {
         mesh = new THREE.InstancedMesh(geometry, material, count);
         mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         mesh.castShadow = true;
+        mesh.receiveShadow = true;
         scene.add(mesh);
 
         const magnetMaterial = new THREE.MeshStandardMaterial();
         magnetMaterial.color = new THREE.Color("#9ef404");
         magnetMaterial.roughness = 0.6;
-        magnetMaterial.metalness = 1.0;
+        magnetMaterial.metalness = 0.9;
 
         const magnetGeometry = new THREE.SphereGeometry( 1.0, 32, 16 );
         magnetGeometry.scale(0.09, 0.09, 0.09);
@@ -116,11 +120,27 @@ function run3D(memory, simulation) {
         const axesHelper = new THREE.AxesHelper( 5 );
         scene.add(axesHelper);
 
-        const spotLight = new THREE.SpotLight( 0xffffff, 8.0, 0, Math.PI / 3, 0, 0);
-        spotLight.position.set(0, 10, 2);
-        spotLight.updateMatrix();
-        spotLight.castShadow = true;
-        scene.add(spotLight);
+        //const spotLight = new THREE.SpotLight( 0xffffff, 8.0, 0, Math.PI / 3, 0, 0);
+        //spotLight.position.set(0, 10, 2);
+        //spotLight.updateMatrix();
+        //spotLight.castShadow = true;
+        //scene.add(spotLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 8.0);
+        directionalLight.position.set(0, 10, 2);
+        directionalLight.updateMatrix();
+        directionalLight.castShadow = true;
+				directionalLight.shadow.camera.near = 0.01;
+				directionalLight.shadow.camera.far = 100;
+				directionalLight.shadow.camera.right = 15;
+				directionalLight.shadow.camera.left = -15;
+				directionalLight.shadow.camera.top	= 15;
+				directionalLight.shadow.camera.bottom = -15;
+				directionalLight.shadow.mapSize.width = 1024;
+				directionalLight.shadow.mapSize.height = 1024;
+        scene.add(directionalLight);
+
+        const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 8.0);
+        scene.add(hemisphereLight);
 
         const lightMesh = new THREE.Mesh(
             new THREE.SphereGeometry(0.1, 32, 16),
@@ -132,13 +152,13 @@ function run3D(memory, simulation) {
         lightMesh.updateMatrix();
         scene.add(lightMesh);
 
-        const floorGeometry = new THREE.PlaneGeometry(20, 20);
+        const floorGeometry = new THREE.PlaneGeometry(200, 200);
         const floorMaterial = new THREE.MeshStandardMaterial();
         floorMaterial.color = new THREE.Color("rgb(150, 95, 85)");
         floorMaterial.opacity = 0.7;
 				floorMaterial.transparent = true;
         floorMaterial.roughness = 0.6;
-        floorMaterial.metalness = 1.0;
+        floorMaterial.metalness = 0.9;
         floorMaterial.side = THREE.DoubleSide;
         const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
         floorMesh.receiveShadow = true;
