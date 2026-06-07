@@ -1,4 +1,4 @@
-import init, { Simulation } from './pkg/boids.js';
+import init, { Simulation, SimulationParameters } from './pkg/boids.js';
 
 //import * as THREE from 'three/webgpu';
 import * as THREE from 'three';
@@ -30,7 +30,7 @@ function run3D(memory, simulation) {
 
         const positionsAndVelocities = new Float64Array(
             memory.buffer,
-            simulation.boids(),
+            simulation.get_boids(),
             simulation.num_boids() * stride,
         );
 
@@ -205,7 +205,7 @@ function run2D(memory, simulation) {
         // const stride = 6;
         const positionsAndVelocities = new Float64Array(
             memory.buffer,
-            simulation.boids(),
+            simulation.get_boids(),
             simulation.num_boids() * stride,
         );
 
@@ -259,6 +259,9 @@ async function run() {
 
     const memory = module.memory;
     const simulation = Simulation.new(1.0, 500);
+
+    console.log(simulation);
+    console.log(simulation.get_parameters());
 
     // run2D(memory, simulation);
     run3D(memory, simulation);
