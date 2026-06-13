@@ -6,8 +6,41 @@ import { mix, range, normalWorld, oscSine, time } from 'three/tsl';
 
 import { Inspector } from 'three/addons/inspector/Inspector.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { ImprovedNoise } from 'three/addons/math/ImprovedNoise.js';
 
 const D = 2;
+
+function generateFloorTexture(size) {
+		const data = new Uint8Array(size * size * 4);
+
+		let i = 0;
+		const perlin = new ImprovedNoise();
+		const vector = new THREE.Vector2();
+    const scale = 20;
+
+		for (let y = 0; y < size; y ++) {
+				for ( let x = 0; x < size; x ++ ) {
+						vector.set(x, y,).divideScalar(size).multiplyScalar(scale);
+						const d = perlin.noise(vector.x, vector.y, 0);
+						data[i++] = d * 128 + 128;
+						data[i++] = 0;
+						data[i++] = 0;
+						data[i++] = 0;
+				}
+		}
+
+    console.log(data);
+
+    const texture = new THREE.DataTexture(data, size, size);
+		texture.format = THREE.RGBAFormat;
+    texture.type = THREE.UnsignedByteType;
+		texture.minFilter = THREE.LinearFilter;
+		texture.magFilter = THREE.LinearFilter;
+    texture.unpackAlignment = 4;
+    texture.needsUpdate = true;
+
+    return texture;
+}
 
 function run3D(memory, simulation) {
     const canvas = document.querySelector("#canvas");
@@ -53,7 +86,6 @@ function run3D(memory, simulation) {
                 simulation.get_magnet(),
                 3,
             );
-            console.log(magnetPosition);
             magnetMesh.position.set(...magnetPosition);
         }
 
@@ -70,7 +102,7 @@ function run3D(memory, simulation) {
 				//renderer = new THREE.WebGPURenderer( { antialias: true } );
 				renderer = new THREE.WebGLRenderer( { antialias: true } );
 				renderer.shadowMap.enabled = true;
-				renderer.shadowMap.type = THREE.PCFShadowMap;
+				renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.setClearColor(new THREE.Color(0x000000));
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(1200, 800);
@@ -89,7 +121,7 @@ function run3D(memory, simulation) {
         camera.lookAt(0, 0, 0);
 
         scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x333333, 0.01);
+        scene.fog = new THREE.FogExp2(0x333333, 0.018);
 
         const material = new THREE.MeshStandardMaterial();
         material.color = new THREE.Color("#049ef4");
@@ -120,49 +152,61 @@ function run3D(memory, simulation) {
         const axesHelper = new THREE.AxesHelper( 5 );
         scene.add(axesHelper);
 
-        //const spotLight = new THREE.SpotLight( 0xffffff, 8.0, 0, Math.PI / 3, 0, 0);
-        //spotLight.position.set(0, 10, 2);
-        //spotLight.updateMatrix();
-        //spotLight.castShadow = true;
-        //scene.add(spotLight);
+        const extent = 50;
+
         const directionalLight = new THREE.DirectionalLight(0xffffff, 8.0);
-        directionalLight.position.set(0, 10, 2);
-        directionalLight.updateMatrix();
+        directionalLight.position.set(0, 1.4 * extent, 1.4 * extent);
+        directionalLight.target.position.set(0, 0, -15);
         directionalLight.castShadow = true;
-				directionalLight.shadow.camera.near = 0.01;
-				directionalLight.shadow.camera.far = 100;
-				directionalLight.shadow.camera.right = 15;
-				directionalLight.shadow.camera.left = -15;
-				directionalLight.shadow.camera.top	= 15;
-				directionalLight.shadow.camera.bottom = -15;
-				directionalLight.shadow.mapSize.width = 1024;
-				directionalLight.shadow.mapSize.height = 1024;
+				directionalLight.shadow.camera.near = 1;
+				directionalLight.shadow.camera.far = 5000;
+				directionalLight.shadow.camera.right = extent;
+				directionalLight.shadow.camera.left = -extent;
+				directionalLight.shadow.camera.top	= extent;
+				directionalLight.shadow.camera.bottom = -extent;
+				directionalLight.shadow.mapSize.width = 512;
+				directionalLight.shadow.mapSize.height = 512;
+        directionalLight.shadow.bias = -0.0001;
+        directionalLight.shadow.normalBias = 0;
+        directionalLight.shadow.intensity = 0.9;
+
+        directionalLight.updateMatrixWorld(true);
+        directionalLight.target.updateMatrixWorld(true);
+        directionalLight.shadow.updateMatrices(directionalLight);
+
         scene.add(directionalLight);
 
-        const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 8.0);
+        const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 4.0);
         scene.add(hemisphereLight);
 
         const lightMesh = new THREE.Mesh(
-            new THREE.SphereGeometry(0.1, 32, 16),
+            new THREE.SphereGeometry(1.1, 32, 16),
             new THREE.MeshStandardMaterial({
                 emissive: new THREE.Color("#ffffff"),
             }),
         );
-        lightMesh.position.set(0, 10, 2);
+        lightMesh.position.copy(directionalLight.position);
         lightMesh.updateMatrix();
         scene.add(lightMesh);
 
-        const floorGeometry = new THREE.PlaneGeometry(200, 200);
+        const floorTexture = generateFloorTexture(256);
+
+        const floorGeometry = new THREE.PlaneGeometry(100, 100, 256, 256);
         const floorMaterial = new THREE.MeshStandardMaterial();
         floorMaterial.color = new THREE.Color("rgb(150, 95, 85)");
-        floorMaterial.opacity = 0.7;
-				floorMaterial.transparent = true;
-        floorMaterial.roughness = 0.6;
-        floorMaterial.metalness = 0.9;
+        floorMaterial.opacity = 1.0;
+				floorMaterial.transparent = false;
+        floorMaterial.roughness = 1.0;
+        floorMaterial.metalness = 0.1;
         floorMaterial.side = THREE.DoubleSide;
+        floorMaterial.displacementMap = floorTexture;
+        floorMaterial.displacementScale = 10;
+
         const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
         floorMesh.receiveShadow = true;
+        floorMesh.castShadow = true;
         floorMesh.rotateX(-Math.PI / 2);
+        floorMesh.position.set(0, -15, 0);
 				scene.add(floorMesh);
 
         const gui = renderer.inspector.createParameters('Settings');
@@ -255,13 +299,10 @@ function run2D(memory, simulation) {
 
 async function run() {
     const module = await init();
-    console.log(module);
 
     const memory = module.memory;
     const simulation = Simulation.new(1.0, 500);
 
-    console.log(simulation);
-    console.log(simulation.get_parameters());
 
     // run2D(memory, simulation);
     run3D(memory, simulation);

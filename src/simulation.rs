@@ -95,7 +95,9 @@ impl SimulationParameters {
 impl Simulation {
     pub fn tick(&mut self) {
         if self.frame % 300 == 0 {
-            self.magnet.fill_with(|| rand::random_range(-4.0..5.0));
+            self.magnet[0] = rand::random_range(-14.0..15.0);
+            self.magnet[1] = rand::random_range(-4.0..5.0);
+            self.magnet[2] = rand::random_range(-14.0..15.0);
         }
 
         // update positions
