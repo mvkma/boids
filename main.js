@@ -6,41 +6,10 @@ import { mix, range, normalWorld, oscSine, time } from 'three/tsl';
 
 import { Inspector } from 'three/addons/inspector/Inspector.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { ImprovedNoise } from 'three/addons/math/ImprovedNoise.js';
+import { Water } from 'three/addons/objects/Water.js';
+import { Sky } from 'three/addons/objects/Sky.js';
 
 const D = 2;
-
-function generateFloorTexture(size) {
-		const data = new Uint8Array(size * size * 4);
-
-		let i = 0;
-		const perlin = new ImprovedNoise();
-		const vector = new THREE.Vector2();
-    const scale = 20;
-
-		for (let y = 0; y < size; y ++) {
-				for ( let x = 0; x < size; x ++ ) {
-						vector.set(x, y,).divideScalar(size).multiplyScalar(scale);
-						const d = perlin.noise(vector.x, vector.y, 0);
-						data[i++] = d * 128 + 128;
-						data[i++] = 0;
-						data[i++] = 0;
-						data[i++] = 0;
-				}
-		}
-
-    console.log(data);
-
-    const texture = new THREE.DataTexture(data, size, size);
-		texture.format = THREE.RGBAFormat;
-    texture.type = THREE.UnsignedByteType;
-		texture.minFilter = THREE.LinearFilter;
-		texture.magFilter = THREE.LinearFilter;
-    texture.unpackAlignment = 4;
-    texture.needsUpdate = true;
-
-    return texture;
-}
 
 function run3D(memory, simulation) {
     const canvas = document.querySelector("#canvas");
@@ -51,6 +20,7 @@ function run3D(memory, simulation) {
     let camera, scene, renderer, controls;
     let mesh;
     let magnetMesh;
+    let water, sky;
 
     const dummy = new THREE.Object3D();
 
@@ -89,6 +59,10 @@ function run3D(memory, simulation) {
             magnetMesh.position.set(...magnetPosition);
         }
 
+        const time = performance.now() * 0.0001;
+        water.material.uniforms['time'].value += 0.5 * 1.0 / 60.0;
+				sky.material.uniforms['time'].value = time;
+
         await renderer.render(scene, camera);
 
         frame += 1;
@@ -107,7 +81,7 @@ function run3D(memory, simulation) {
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(1200, 800);
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-				renderer.toneMappingExposure = 0.85;
+				renderer.toneMappingExposure = 0.5;
         renderer.setAnimationLoop(animate);
         renderer.inspector = new Inspector();
 
@@ -121,7 +95,7 @@ function run3D(memory, simulation) {
         camera.lookAt(0, 0, 0);
 
         scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x333333, 0.018);
+        scene.fog = new THREE.FogExp2(0x333333, 0.020);
 
         const material = new THREE.MeshStandardMaterial();
         material.color = new THREE.Color("#049ef4");
@@ -189,25 +163,41 @@ function run3D(memory, simulation) {
         lightMesh.updateMatrix();
         scene.add(lightMesh);
 
-        const floorTexture = generateFloorTexture(256);
+        const waterGeometry = new THREE.PlaneGeometry(200, 200);
+        water = new Water(
+            waterGeometry,
+            {
+                textureWidth: 512,
+                textureHeight: 512,
+						    sunDirection: (new THREE.Vector3()).copy(directionalLight.position).normalize(),
+                waterNormals: new THREE.TextureLoader().load( 'waternormals.jpg', function ( texture ) {
 
-        const floorGeometry = new THREE.PlaneGeometry(100, 100, 256, 256);
-        const floorMaterial = new THREE.MeshStandardMaterial();
-        floorMaterial.color = new THREE.Color("rgb(150, 95, 85)");
-        floorMaterial.opacity = 1.0;
-				floorMaterial.transparent = false;
-        floorMaterial.roughness = 1.0;
-        floorMaterial.metalness = 0.1;
-        floorMaterial.side = THREE.DoubleSide;
-        floorMaterial.displacementMap = floorTexture;
-        floorMaterial.displacementScale = 10;
+							      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
 
-        const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
-        floorMesh.receiveShadow = true;
-        floorMesh.castShadow = true;
-        floorMesh.rotateX(-Math.PI / 2);
-        floorMesh.position.set(0, -15, 0);
-				scene.add(floorMesh);
+						    } ),
+						    sunColor: 0xffffff,
+						    waterColor: 0x001e0f,
+						    distortionScale: 5.0,
+						    fog: scene.fog !== undefined
+					  }
+        );
+
+        water.material.uniforms['size'].value = 10;
+        water.rotateX(-Math.PI / 2);
+        water.position.set(0, -5, 0);
+        scene.add(water);
+
+        sky = new Sky();
+				sky.scale.setScalar(1000);
+				sky.material.uniforms['sunPosition'].value.copy(directionalLight.position);
+				sky.material.uniforms['turbidity'].value = 1;
+				sky.material.uniforms['rayleigh'].value = 1;
+				sky.material.uniforms['mieCoefficient'].value = 0.005;
+				sky.material.uniforms['mieDirectionalG'].value = 0.8;
+				sky.material.uniforms['cloudCoverage'].value = 0.4;
+				sky.material.uniforms['cloudDensity'].value = 0.5;
+				sky.material.uniforms['cloudElevation'].value = 0.5;
+				scene.add(sky);
 
         const gui = renderer.inspector.createParameters('Settings');
         controls = new OrbitControls(camera, renderer.domElement);
