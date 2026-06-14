@@ -40,6 +40,11 @@ impl Default for SimulationParameters {
 
 #[wasm_bindgen]
 impl SimulationParameters {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        SimulationParameters::default()
+    }
+
     #[wasm_bindgen(getter)]
     pub fn weight_sep(&self) -> f64 {
         self.weight_sep
@@ -152,6 +157,10 @@ impl Simulation {
 
     pub fn get_parameters(&self) -> SimulationParameters {
         self.parameters
+    }
+
+    pub fn set_parameters(&mut self, parameters: SimulationParameters) {
+        self.parameters = parameters;
     }
 
     pub fn new(dt: f64, num_boids: usize) -> Self {

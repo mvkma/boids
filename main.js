@@ -1,5 +1,7 @@
 import init, { Simulation, SimulationParameters } from './pkg/boids.js';
 
+import GUI from 'lil-gui';
+
 //import * as THREE from 'three/webgpu';
 import * as THREE from 'three';
 import { mix, range, normalWorld, oscSine, time } from 'three/tsl';
@@ -26,6 +28,71 @@ function run3D(memory, simulation) {
 
     let frame = 0;
     let magnetPosition = new Float64Array([0, 0, 0]);
+
+    const initialSimulationParameters = simulation.get_parameters();
+
+    const setSimulationParameter = (key, value) => {
+        const currentParams = simulation.get_parameters();
+        currentParams[key] = value;
+        simulation.set_parameters(currentParams);
+    };
+
+    const parameters = {
+        visual: {
+            fov: 75,
+            timeScale: 0.5,
+        },
+        water: {
+            distortionScale: 5.0,
+            size: 10.0,
+        },
+        simulation: {
+            weightSep: initialSimulationParameters.weight_sep,
+            weightPos: initialSimulationParameters.weight_pos,
+            weightVel: initialSimulationParameters.weight_vel,
+            weightMag: initialSimulationParameters.weight_mag,
+            maxVelocity: initialSimulationParameters.max_velocity,
+            reset: function () {
+                const params = new SimulationParameters();
+                simulation.set_parameters(params);
+                simulationFolder.reset();
+            }
+        }
+    };
+
+    const gui = new GUI();
+    const visualFolder = gui.addFolder("visual");
+    visualFolder.add(parameters.visual, "fov", 30, 150).onChange(value => {
+        camera.fov = value;
+        camera.updateProjectionMatrix();
+    });
+    visualFolder.add(parameters.visual, "timeScale", 0, 5);
+
+    const waterFolder = gui.addFolder("water");
+    waterFolder.add(parameters.water, "distortionScale", 0, 20).onChange(value => {
+        water.material.uniforms['distortionScale'].value = value;
+    });
+    waterFolder.add(parameters.water, "size", 0, 20).onChange(value => {
+        water.material.uniforms['size'].value = value;
+    });
+
+    const simulationFolder = gui.addFolder("simulation");
+    simulationFolder.add(parameters.simulation, "weightSep", 0.0, 8.0).onChange(value => {
+        setSimulationParameter("weight_sep", value);
+    });
+    simulationFolder.add(parameters.simulation, "weightPos", 0.0, 8.0).onChange(value => {
+        setSimulationParameter("weight_pos", value);
+    });
+    simulationFolder.add(parameters.simulation, "weightVel", 0.0, 8.0).onChange(value => {
+        setSimulationParameter("weight_vel", value);
+    });
+    simulationFolder.add(parameters.simulation, "weightMag", 0.0, 8.0).onChange(value => {
+        setSimulationParameter("weight_mag", value);
+    });
+    simulationFolder.add(parameters.simulation, "maxVelocity", 0.01, 0.1).onChange(value => {
+        setSimulationParameter("max_velocity", value);
+    });
+    simulationFolder.add(parameters.simulation, "reset");
 
     async function render() {
         simulation.tick();
@@ -60,7 +127,7 @@ function run3D(memory, simulation) {
         }
 
         const time = performance.now() * 0.0001;
-        water.material.uniforms['time'].value += 0.5 * 1.0 / 60.0;
+        water.material.uniforms['time'].value += parameters.visual.timeScale * 1.0 / 60.0;
 				sky.material.uniforms['time'].value = time;
 
         await renderer.render(scene, camera);
@@ -87,7 +154,7 @@ function run3D(memory, simulation) {
 
         document.body.appendChild(renderer.domElement);
 
-        camera = new THREE.PerspectiveCamera(60, canvas.width / canvas.height, 0.01, 100);
+        camera = new THREE.PerspectiveCamera(parameters.visual.fov, canvas.width / canvas.height, 0.01, 100);
         camera.position.set(20, 15, -20);
         //camera = new THREE.OrthographicCamera(-15, 15, 15, -15, 0.01, 100);
         //camera.position.set(0, 10, 2);
@@ -183,12 +250,12 @@ function run3D(memory, simulation) {
 						    } ),
 						    sunColor: 0xffffff,
 						    waterColor: 0x001e0f,
-						    distortionScale: 5.0,
+						    distortionScale: parameters.water.distortionScale,
 						    fog: scene.fog !== undefined
 					  }
         );
 
-        water.material.uniforms['size'].value = 10;
+        water.material.uniforms['size'].value = parameters.water.size;
         water.rotateX(-Math.PI / 2);
         water.position.set(0, -5, 0);
         scene.add(water);
@@ -298,7 +365,6 @@ async function run() {
 
     const memory = module.memory;
     const simulation = Simulation.new(1.0, 500);
-
 
     // run2D(memory, simulation);
     run3D(memory, simulation);
