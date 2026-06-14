@@ -80,15 +80,15 @@ function run3D(memory, simulation) {
         renderer.setClearColor(new THREE.Color(0x000000));
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(1200, 800);
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMapping = THREE.NeutralToneMapping;
 				renderer.toneMappingExposure = 0.5;
         renderer.setAnimationLoop(animate);
         renderer.inspector = new Inspector();
 
         document.body.appendChild(renderer.domElement);
 
-        camera = new THREE.PerspectiveCamera(60, canvas.width / canvas.height, 0.1, 100);
-        camera.position.set(10, 10, 10);
+        camera = new THREE.PerspectiveCamera(60, canvas.width / canvas.height, 0.01, 100);
+        camera.position.set(20, 15, -20);
         //camera = new THREE.OrthographicCamera(-15, 15, 15, -15, 0.01, 100);
         //camera.position.set(0, 10, 2);
         camera.updateMatrix();
@@ -98,17 +98,23 @@ function run3D(memory, simulation) {
         scene.fog = new THREE.FogExp2(0x333333, 0.020);
 
         const material = new THREE.MeshStandardMaterial();
-        material.color = new THREE.Color("#049ef4");
-        material.roughness = 0.6;
-        material.metalness = 0.9;
+        material.roughness = 1.0;
+        material.metalness = 1.0;
 
         const geometry = new THREE.CylinderGeometry( 0.1, 0.7, 5, 32, 2 );
         geometry.scale(0.09, 0.09, 0.09);
 
         mesh = new THREE.InstancedMesh(geometry, material, count);
         mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        //mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
+        for (let i = 0; i < count; i++) {
+            const color = new THREE.Color();
+            color.setHSL(Math.random() * 0.2, 0.7, Math.random() * 0.2 + 0.65);
+            mesh.setColorAt(i, color);
+        }
+        mesh.instanceColor.needsUpdate = true;
         scene.add(mesh);
 
         const magnetMaterial = new THREE.MeshStandardMaterial();
@@ -117,7 +123,7 @@ function run3D(memory, simulation) {
         magnetMaterial.metalness = 0.9;
 
         const magnetGeometry = new THREE.SphereGeometry( 1.0, 32, 16 );
-        magnetGeometry.scale(0.09, 0.09, 0.09);
+        magnetGeometry.scale(0.19, 0.19, 0.19);
 
         magnetMesh = new THREE.Mesh(magnetGeometry, magnetMaterial);
         magnetMesh.castShadow = true;
@@ -150,7 +156,7 @@ function run3D(memory, simulation) {
 
         scene.add(directionalLight);
 
-        const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 4.0);
+        const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 17.0);
         scene.add(hemisphereLight);
 
         const lightMesh = new THREE.Mesh(
@@ -282,7 +288,7 @@ function run2D(memory, simulation) {
         }
 
         requestAnimationFrame(() => renderLoop());
-    }
+    };
 
     requestAnimationFrame(() => renderLoop());
 }
