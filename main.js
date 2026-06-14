@@ -1,6 +1,7 @@
 import init, { Simulation, SimulationParameters } from './pkg/boids.js';
 
 import GUI from 'lil-gui';
+import Stats from 'stats-gl';
 
 //import * as THREE from 'three/webgpu';
 import * as THREE from 'three';
@@ -29,6 +30,9 @@ function run3D(memory, simulation) {
     let frame = 0;
     let magnetPosition = new Float64Array([0, 0, 0]);
 
+    const stats = new Stats({ trackGPU: true });
+    document.body.appendChild(stats.dom);
+
     const initialSimulationParameters = simulation.get_parameters();
 
     const setSimulationParameter = (key, value) => {
@@ -45,6 +49,15 @@ function run3D(memory, simulation) {
         water: {
             distortionScale: 5.0,
             size: 10.0,
+        },
+        sky: {
+            turbidity: 1,
+            rayleigh: 1,
+            mieCoefficient: 0.005,
+            mieDirectionalG: 0.9,
+            cloudCoverage: 0.5,
+            cloudDensity: 0.7,
+            cloudElevation: 0.5,
         },
         simulation: {
             weightSep: initialSimulationParameters.weight_sep,
@@ -74,6 +87,29 @@ function run3D(memory, simulation) {
     });
     waterFolder.add(parameters.water, "size", 0, 20).onChange(value => {
         water.material.uniforms['size'].value = value;
+    });
+
+    const skyFolder = gui.addFolder("sky");
+    skyFolder.add(parameters.sky, "turbidity", 0, 10).onChange(value => {
+        sky.material.uniforms["turbidity"].value = value;
+    });
+    skyFolder.add(parameters.sky, "rayleigh", 0, 10).onChange(value => {
+        sky.material.uniforms["rayleigh"].value = value;
+    });
+    skyFolder.add(parameters.sky, "mieCoefficient", 0, 1).onChange(value => {
+        sky.material.uniforms["mieCoefficient"].value = value;
+    });
+    skyFolder.add(parameters.sky, "mieDirectionalG", 0, 1).onChange(value => {
+        sky.material.uniforms["mieDirectionalG"].value = value;
+    });
+    skyFolder.add(parameters.sky, "cloudCoverage", 0, 1).onChange(value => {
+        sky.material.uniforms["cloudCoverage"].value = value;
+    });
+    skyFolder.add(parameters.sky, "cloudDensity", 0, 1).onChange(value => {
+        sky.material.uniforms["cloudDensity"].value = value;
+    });
+    skyFolder.add(parameters.sky, "cloudElevation", 0, 1).onChange(value => {
+        sky.material.uniforms["cloudElevation"].value = value;
     });
 
     const simulationFolder = gui.addFolder("simulation");
@@ -132,6 +168,8 @@ function run3D(memory, simulation) {
 
         await renderer.render(scene, camera);
 
+        stats.update();
+
         frame += 1;
     }
 
@@ -151,22 +189,22 @@ function run3D(memory, simulation) {
 				renderer.toneMappingExposure = 0.5;
         renderer.setAnimationLoop(animate);
         renderer.inspector = new Inspector();
+        stats.init(renderer);
 
         document.body.appendChild(renderer.domElement);
 
         camera = new THREE.PerspectiveCamera(parameters.visual.fov, canvas.width / canvas.height, 0.01, 100);
         camera.position.set(20, 15, -20);
-        //camera = new THREE.OrthographicCamera(-15, 15, 15, -15, 0.01, 100);
-        //camera.position.set(0, 10, 2);
         camera.updateMatrix();
-        camera.lookAt(0, 0, 0);
 
         scene = new THREE.Scene();
         scene.fog = new THREE.FogExp2(0x333333, 0.020);
 
         const material = new THREE.MeshStandardMaterial();
-        material.roughness = 1.0;
-        material.metalness = 1.0;
+        material.emissive = new THREE.Color("#ffffff");
+        material.emissiveIntensity = 0.3;
+        material.roughness = 0.6;
+        material.metalness = 0.9;
 
         const geometry = new THREE.CylinderGeometry( 0.1, 0.7, 5, 32, 2 );
         geometry.scale(0.09, 0.09, 0.09);
@@ -178,7 +216,7 @@ function run3D(memory, simulation) {
         mesh.receiveShadow = true;
         for (let i = 0; i < count; i++) {
             const color = new THREE.Color();
-            color.setHSL(Math.random() * 0.2, 0.7, Math.random() * 0.2 + 0.65);
+            color.setHSL(Math.random() * 0.2, 1.0, Math.random() * 0.2 + 0.65);
             mesh.setColorAt(i, color);
         }
         mesh.instanceColor.needsUpdate = true;
@@ -263,13 +301,13 @@ function run3D(memory, simulation) {
         sky = new Sky();
 				sky.scale.setScalar(1000);
 				sky.material.uniforms['sunPosition'].value.copy(directionalLight.position);
-				sky.material.uniforms['turbidity'].value = 1;
-				sky.material.uniforms['rayleigh'].value = 1;
-				sky.material.uniforms['mieCoefficient'].value = 0.005;
-				sky.material.uniforms['mieDirectionalG'].value = 0.8;
-				sky.material.uniforms['cloudCoverage'].value = 0.4;
-				sky.material.uniforms['cloudDensity'].value = 0.5;
-				sky.material.uniforms['cloudElevation'].value = 0.5;
+				sky.material.uniforms['turbidity'].value = parameters.sky.turbidity;
+				sky.material.uniforms['rayleigh'].value = parameters.sky.rayleigh;
+				sky.material.uniforms['mieCoefficient'].value = parameters.sky.mieCoefficient;
+				sky.material.uniforms['mieDirectionalG'].value = parameters.sky.mieDirectionalG;
+				sky.material.uniforms['cloudCoverage'].value = parameters.sky.cloudCoverage;
+				sky.material.uniforms['cloudDensity'].value = parameters.sky.cloudDensity;
+				sky.material.uniforms['cloudElevation'].value = parameters.sky.cloudElevation;
 				scene.add(sky);
 
         const gui = renderer.inspector.createParameters('Settings');
@@ -364,7 +402,7 @@ async function run() {
     const module = await init();
 
     const memory = module.memory;
-    const simulation = Simulation.new(1.0, 500);
+    const simulation = Simulation.new(1.0, 1500);
 
     // run2D(memory, simulation);
     run3D(memory, simulation);
