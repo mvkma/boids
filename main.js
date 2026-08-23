@@ -16,6 +16,8 @@ const D = 2;
 
 function run3D(memory, simulation) {
     const canvas = document.querySelector("#canvas");
+    const width = canvas.width;
+    const height = canvas.height;
 
     const count = simulation.num_boids();
 
@@ -24,6 +26,7 @@ function run3D(memory, simulation) {
     let magnetMesh;
     let water, sky;
     let axesHelper;
+
 
     const dummy = new THREE.Object3D();
 
@@ -139,6 +142,32 @@ function run3D(memory, simulation) {
     });
     simulationFolder.add(parameters.simulation, "reset");
 
+    const fullscreenIcon = document.querySelector('#boids-fullscreen-icon');
+
+    document.addEventListener("fullscreenchange", () => {
+        if (document.fullscreenElement) {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        } else {
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+    });
+
+    fullscreenIcon.addEventListener('click', () => {
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+        } else {
+            const parent = renderer.domElement.parentElement;
+            parent.requestFullscreen().then(() => {
+                renderer.domElement.width = parent.width;
+                renderer.domElement.height = parent.height;
+            });
+        }
+    });
+
     async function render() {
         if (!parameters.visual.paused) {
             simulation.tick();
@@ -195,7 +224,7 @@ function run3D(memory, simulation) {
 				renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.setClearColor(new THREE.Color(0x000000));
         renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(1200, 800);
+        renderer.setSize(width, height);
         renderer.toneMapping = THREE.NeutralToneMapping;
 				renderer.toneMappingExposure = 0.5;
         renderer.setAnimationLoop(animate);
@@ -203,7 +232,7 @@ function run3D(memory, simulation) {
         console.log(renderer);
         stats.init(renderer);
 
-        camera = new THREE.PerspectiveCamera(parameters.visual.fov, canvas.width / canvas.height, 0.001, 100);
+        camera = new THREE.PerspectiveCamera(parameters.visual.fov, width / height, 0.001, 100);
         camera.position.set(20, 15, -20);
         camera.updateMatrix();
 
@@ -292,7 +321,7 @@ function run3D(memory, simulation) {
                 textureWidth: 512,
                 textureHeight: 512,
 						    sunDirection: (new THREE.Vector3()).copy(directionalLight.position).normalize(),
-                waterNormals: new THREE.TextureLoader().load( 'waternormals.jpg', function ( texture ) {
+                waterNormals: new THREE.TextureLoader().load( './waternormals.jpg', function ( texture ) {
 
 							      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
 

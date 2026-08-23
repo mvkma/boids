@@ -9,6 +9,7 @@
             <canvas width="1200" height="800" id="canvas"></canvas>
             <div id="boids-stats"></div>
             <pre id="performance"></pre>
+            <div id="boids-fullscreen-icon">⛶</div>
         </div>
         <script type="importmap">
          {
@@ -37,6 +38,15 @@
 
          #boids-stats > div {
              position: absolute !important;
+         }
+
+         #boids-fullscreen-icon {
+             cursor: pointer;
+             position: absolute;
+             bottom: 10px;
+             right: 10px;
+             color: #fff;
+             font-size: 32px;
          }
         </style>
     </body>
