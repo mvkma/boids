@@ -16,7 +16,6 @@ const D = 2;
 
 function run3D(memory, simulation) {
     const canvas = document.querySelector("#canvas");
-    canvas.hidden = true;
 
     const count = simulation.num_boids();
 
@@ -24,6 +23,7 @@ function run3D(memory, simulation) {
     let mesh;
     let magnetMesh;
     let water, sky;
+    let axesHelper;
 
     const dummy = new THREE.Object3D();
 
@@ -31,7 +31,7 @@ function run3D(memory, simulation) {
     let magnetPosition = new Float64Array([0, 0, 0]);
 
     const stats = new Stats({ trackGPU: true });
-    document.body.appendChild(stats.dom);
+    document.querySelector("#boids-stats").appendChild(stats.dom);
 
     const initialSimulationParameters = simulation.get_parameters();
 
@@ -45,6 +45,8 @@ function run3D(memory, simulation) {
         visual: {
             fov: 75,
             timeScale: 0.5,
+            axesHelper: false,
+            paused: false,
         },
         water: {
             distortionScale: 5.0,
@@ -73,13 +75,18 @@ function run3D(memory, simulation) {
         }
     };
 
-    const gui = new GUI();
+    const gui = new GUI({ container: document.querySelector("#boids-canvas-container") });
     const visualFolder = gui.addFolder("visual");
     visualFolder.add(parameters.visual, "fov", 30, 150).onChange(value => {
         camera.fov = value;
         camera.updateProjectionMatrix();
     });
     visualFolder.add(parameters.visual, "timeScale", 0, 5);
+    visualFolder.add(parameters.visual, "axesHelper").onChange(value => {
+        axesHelper.visible = value;
+    });
+    visualFolder.add(parameters.visual, "paused").onChange(value => {
+    });
 
     const waterFolder = gui.addFolder("water");
     waterFolder.add(parameters.water, "distortionScale", 0, 20).onChange(value => {
@@ -88,6 +95,7 @@ function run3D(memory, simulation) {
     waterFolder.add(parameters.water, "size", 0, 20).onChange(value => {
         water.material.uniforms['size'].value = value;
     });
+    waterFolder.close();
 
     const skyFolder = gui.addFolder("sky");
     skyFolder.add(parameters.sky, "turbidity", 0, 10).onChange(value => {
@@ -111,6 +119,7 @@ function run3D(memory, simulation) {
     skyFolder.add(parameters.sky, "cloudElevation", 0, 1).onChange(value => {
         sky.material.uniforms["cloudElevation"].value = value;
     });
+    skyFolder.close();
 
     const simulationFolder = gui.addFolder("simulation");
     simulationFolder.add(parameters.simulation, "weightSep", 0.0, 8.0).onChange(value => {
@@ -131,7 +140,9 @@ function run3D(memory, simulation) {
     simulationFolder.add(parameters.simulation, "reset");
 
     async function render() {
-        simulation.tick();
+        if (!parameters.visual.paused) {
+            simulation.tick();
+        }
         const stride = 6;
 
         const positionsAndVelocities = new Float64Array(
@@ -179,7 +190,7 @@ function run3D(memory, simulation) {
 
     function init() {
 				//renderer = new THREE.WebGPURenderer( { antialias: true } );
-				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer = new THREE.WebGLRenderer( { antialias: true, canvas: canvas } );
 				renderer.shadowMap.enabled = true;
 				renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.setClearColor(new THREE.Color(0x000000));
@@ -189,11 +200,10 @@ function run3D(memory, simulation) {
 				renderer.toneMappingExposure = 0.5;
         renderer.setAnimationLoop(animate);
         renderer.inspector = new Inspector();
+        console.log(renderer);
         stats.init(renderer);
 
-        document.body.appendChild(renderer.domElement);
-
-        camera = new THREE.PerspectiveCamera(parameters.visual.fov, canvas.width / canvas.height, 0.01, 100);
+        camera = new THREE.PerspectiveCamera(parameters.visual.fov, canvas.width / canvas.height, 0.001, 100);
         camera.position.set(20, 15, -20);
         camera.updateMatrix();
 
@@ -234,7 +244,8 @@ function run3D(memory, simulation) {
         magnetMesh.castShadow = true;
         scene.add(magnetMesh);
 
-        const axesHelper = new THREE.AxesHelper( 5 );
+        axesHelper = new THREE.AxesHelper( 5 );
+        axesHelper.visible = false;
         scene.add(axesHelper);
 
         const extent = 50;

@@ -5,8 +5,11 @@
     </head>
     <body>
         <h1>Boids!</h1>
-        <canvas width="1200" height="800" id="canvas"></canvas>
-        <pre id="performance"></pre>
+        <div id="boids-canvas-container">
+            <canvas width="1200" height="800" id="canvas"></canvas>
+            <div id="boids-stats"></div>
+            <pre id="performance"></pre>
+        </div>
         <script type="importmap">
          {
              "imports": {
@@ -20,5 +23,21 @@
          }
         </script>
         <script type="module" src="./main.js"></script>
+        <style>
+         #boids-canvas-container {
+             position: relative;
+             width: fit-content;
+         }
+
+         .lil-root {
+             position: absolute;
+             top: 0px;
+             right: 0px;
+         }
+
+         #boids-stats > div {
+             position: absolute !important;
+         }
+        </style>
     </body>
 </html>
