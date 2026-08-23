@@ -52,7 +52,7 @@ function run3D(memory, simulation) {
             paused: false,
         },
         water: {
-            distortionScale: 5.0,
+            distortionScale: 1.0,
             size: 10.0,
         },
         sky: {
@@ -146,9 +146,6 @@ function run3D(memory, simulation) {
 
     document.addEventListener("fullscreenchange", () => {
         if (document.fullscreenElement) {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
         } else {
             camera.aspect = width / height;
             camera.updateProjectionMatrix();
@@ -164,6 +161,9 @@ function run3D(memory, simulation) {
             parent.requestFullscreen().then(() => {
                 renderer.domElement.width = parent.width;
                 renderer.domElement.height = parent.height;
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
             });
         }
     });
@@ -321,7 +321,7 @@ function run3D(memory, simulation) {
                 textureWidth: 512,
                 textureHeight: 512,
 						    sunDirection: (new THREE.Vector3()).copy(directionalLight.position).normalize(),
-                waterNormals: new THREE.TextureLoader().load( './waternormals.jpg', function ( texture ) {
+                waterNormals: new THREE.TextureLoader().load( './assets/img/waternormals.jpg', function ( texture ) {
 
 							      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
 
