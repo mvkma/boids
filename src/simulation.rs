@@ -4,7 +4,7 @@ use std::fmt;
 use wasm_bindgen::prelude::*;
 
 use crate::D;
-use crate::boid::Boid;
+use crate::boid::{BOID_MAX_MAG, Boid};
 
 #[wasm_bindgen]
 #[derive(Debug)]
@@ -24,6 +24,8 @@ pub struct SimulationParameters {
     weight_vel: f64,
     weight_mag: f64,
     max_velocity: f64,
+    radius1: f64,
+    radius2: f64,
 }
 
 impl Default for SimulationParameters {
@@ -32,8 +34,10 @@ impl Default for SimulationParameters {
             weight_sep: 5.5,
             weight_pos: 0.3,
             weight_vel: 1.0,
-            weight_mag: 0.005,
+            weight_mag: 10.0 * BOID_MAX_MAG,
             max_velocity: 0.04,
+            radius1: 0.4,
+            radius2: 0.1,
         }
     }
 }
@@ -94,6 +98,26 @@ impl SimulationParameters {
     pub fn set_max_velocity(&mut self, velocity: f64) {
         self.max_velocity = velocity
     }
+
+    #[wasm_bindgen(getter)]
+    pub fn radius1(&self) -> f64 {
+        self.radius1
+    }
+
+    #[wasm_bindgen(setter)]
+    pub fn set_radius1(&mut self, radius: f64) {
+        self.radius1 = radius
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn radius2(&self) -> f64 {
+        self.radius2
+    }
+
+    #[wasm_bindgen(setter)]
+    pub fn set_radius2(&mut self, radius: f64) {
+        self.radius2 = radius
+    }
 }
 
 #[wasm_bindgen]
@@ -121,8 +145,12 @@ impl Simulation {
         );
 
         for boid in self.boids.iter_mut() {
-            let (total_sep, total_pos, total_vel) =
-                boid.separation_cohesion_alignment(&tree, &others);
+            let (total_sep, total_pos, total_vel) = boid.separation_cohesion_alignment(
+                &tree,
+                &others,
+                self.parameters.radius1,
+                self.parameters.radius2,
+            );
             let mut magnet_direction = self.magnet - boid.position;
             magnet_direction.try_set_magnitude(magnet_direction.norm().recip(), 1.0e-5);
             let new_velocity = (boid.velocity
@@ -161,6 +189,10 @@ impl Simulation {
 
     pub fn set_parameters(&mut self, parameters: SimulationParameters) {
         self.parameters = parameters;
+    }
+
+    pub fn set_num_boids(&mut self, num_boids: usize) {
+        self.boids.resize_with(num_boids, || Boid::new());
     }
 
     pub fn new(dt: f64, num_boids: usize) -> Self {

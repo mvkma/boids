@@ -18,15 +18,15 @@ function run3D(memory, simulation) {
     const canvas = document.querySelector("#canvas");
     const width = canvas.width;
     const height = canvas.height;
+    const maxInstances = 5000;
 
-    const count = simulation.num_boids();
+    let count = simulation.num_boids();
 
     let camera, scene, renderer, controls;
     let mesh;
     let magnetMesh;
     let water, sky;
     let axesHelper;
-
 
     const dummy = new THREE.Object3D();
 
@@ -65,11 +65,14 @@ function run3D(memory, simulation) {
             cloudElevation: 0.5,
         },
         simulation: {
+            numBoids: simulation.num_boids(),
             weightSep: initialSimulationParameters.weight_sep,
             weightPos: initialSimulationParameters.weight_pos,
             weightVel: initialSimulationParameters.weight_vel,
             weightMag: initialSimulationParameters.weight_mag,
             maxVelocity: initialSimulationParameters.max_velocity,
+            radius1: initialSimulationParameters.radius1,
+            radius2: initialSimulationParameters.radius2,
             reset: function () {
                 const params = new SimulationParameters();
                 simulation.set_parameters(params);
@@ -125,6 +128,11 @@ function run3D(memory, simulation) {
     skyFolder.close();
 
     const simulationFolder = gui.addFolder("simulation");
+    simulationFolder.add(parameters.simulation, "numBoids", 1, maxInstances, 1).onChange(value => {
+        simulation.set_num_boids(value);
+        count = value;
+        mesh.count = value;
+    });
     simulationFolder.add(parameters.simulation, "weightSep", 0.0, 8.0).onChange(value => {
         setSimulationParameter("weight_sep", value);
     });
@@ -140,6 +148,13 @@ function run3D(memory, simulation) {
     simulationFolder.add(parameters.simulation, "maxVelocity", 0.01, 0.1).onChange(value => {
         setSimulationParameter("max_velocity", value);
     });
+    simulationFolder.add(parameters.simulation, "radius1", 0.0, 1.0).onChange(value => {
+        setSimulationParameter("radius1", value);
+    });
+    simulationFolder.add(parameters.simulation, "radius2", 0.0, 1.0).onChange(value => {
+        setSimulationParameter("radius2", value);
+    });
+
     simulationFolder.add(parameters.simulation, "reset");
 
     const fullscreenIcon = document.querySelector('#boids-fullscreen-icon');
@@ -229,7 +244,6 @@ function run3D(memory, simulation) {
 				renderer.toneMappingExposure = 0.5;
         renderer.setAnimationLoop(animate);
         renderer.inspector = new Inspector();
-        console.log(renderer);
         stats.init(renderer);
 
         camera = new THREE.PerspectiveCamera(parameters.visual.fov, width / height, 0.001, 100);
@@ -248,12 +262,13 @@ function run3D(memory, simulation) {
         const geometry = new THREE.CylinderGeometry( 0.1, 0.7, 5, 32, 2 );
         geometry.scale(0.09, 0.09, 0.09);
 
-        mesh = new THREE.InstancedMesh(geometry, material, count);
+        mesh = new THREE.InstancedMesh(geometry, material, maxInstances);
+        mesh.count = count;
         mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         //mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
-        for (let i = 0; i < count; i++) {
+        for (let i = 0; i < maxInstances; i++) {
             const color = new THREE.Color();
             color.setHSL(Math.random() * 0.2, 1.0, Math.random() * 0.2 + 0.65);
             mesh.setColorAt(i, color);

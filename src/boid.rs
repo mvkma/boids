@@ -5,6 +5,8 @@ use std::f64;
 
 use crate::D;
 
+pub const BOID_MAX_MAG: f64 = 0.0005;
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Boid {
     pub position: SVector<f64, D>,
@@ -41,8 +43,11 @@ impl Boid {
         &mut self,
         tree: &KdTree<f64, D>,
         others: &Vec<Boid>,
+        radius1: f64,
+        radius2: f64,
     ) -> (SVector<f64, D>, SVector<f64, D>, SVector<f64, D>) {
-        let within2 = tree.within_unsorted::<SquaredEuclidean>(self.position.as_ref(), 0.25 * 0.25);
+        let within =
+            tree.within_unsorted::<SquaredEuclidean>(self.position.as_ref(), radius1 * radius1);
 
         let mut total_sep = SVector::<f64, D>::zeros();
         let mut total_pos = SVector::<f64, D>::zeros();
@@ -52,14 +57,14 @@ impl Boid {
         let mut count_pos = 0;
         let mut count_vel = 0;
 
-        for neighbor in within2.iter() {
+        for neighbor in within.iter() {
             if neighbor.distance < 1e-10 {
                 continue;
             }
 
             let other = &others[neighbor.item as usize];
 
-            if neighbor.distance < 0.15 * 0.15 {
+            if neighbor.distance < radius2 * radius2 {
                 let mut diff = self.position - other.position;
                 diff.set_magnitude(neighbor.distance.sqrt().recip());
 
@@ -75,16 +80,16 @@ impl Boid {
         }
 
         if count_sep > 0 {
-            total_sep.set_magnitude(0.0005);
+            total_sep.set_magnitude(BOID_MAX_MAG);
         }
 
         if count_pos > 0 {
             total_pos = total_pos / count_pos as f64 - self.position;
-            total_pos.set_magnitude(0.0005);
+            total_pos.set_magnitude(BOID_MAX_MAG);
         }
 
         if count_vel > 0 {
-            total_vel.set_magnitude(0.0005);
+            total_vel.set_magnitude(BOID_MAX_MAG);
         }
 
         (total_sep, total_pos, total_vel)
