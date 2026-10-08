@@ -1,4 +1,4 @@
-use kiddo::{KdTree, SquaredEuclidean};
+use kiddo::{ImmutableKdTree, QueryResultItem, SquaredEuclidean};
 use nalgebra::SVector;
 use rand::RngExt;
 use std::f64;
@@ -39,17 +39,10 @@ impl Boid {
 
     pub fn separation_cohesion_alignment(
         &mut self,
-        tree: &KdTree<f64, D>,
+        within: &[QueryResultItem<(), u32, f64>],
         others: &Vec<Boid>,
         parameters: &SimulationParameters,
     ) -> (SVector<f64, D>, SVector<f64, D>, SVector<f64, D>) {
-        let biggest_radius = parameters
-            .radius_sep()
-            .max(parameters.radius_coh())
-            .max(parameters.radius_ali());
-
-        let within =
-            tree.within_unsorted::<SquaredEuclidean>(self.position.as_ref(), biggest_radius);
 
         let mut dv_sep = SVector::<f64, D>::zeros();
         let mut dv_coh = SVector::<f64, D>::zeros();

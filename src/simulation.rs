@@ -1,6 +1,8 @@
-use kiddo::KdTree;
+use kiddo::ImmutableKdTree;
+use kiddo::dist::SquaredEuclidean;
 use nalgebra::SVector;
 use std::fmt;
+use std::num::NonZero;
 use wasm_bindgen::prelude::*;
 
 use crate::D;
@@ -152,17 +154,26 @@ impl Simulation {
 
         // update velocities
         let others = self.boids.clone();
-        let tree = KdTree::from_iter(
-            others
-                .iter()
-                .enumerate()
-                .map(|(idx, b)| (*b.position.as_ref(), idx as u64)),
-        );
+        let positions: Vec<[f64; 3]> = others.iter().map(|b| *b.position.as_ref()).collect();
+        let tree = ImmutableKdTree::<f64, D>::new_from_slice(&positions).unwrap();
+
+        let biggest_radius = self.parameters
+            .radius_sep()
+            .max(self.parameters.radius_coh())
+            .max(self.parameters.radius_ali());
+
+        let matches = tree
+            .query_batch(&positions)
+            .within::<SquaredEuclidean<f64>>(biggest_radius)
+            .unsorted()
+            .execute();
 
         // let mut shown = false;
-        for boid in self.boids.iter_mut() {
+        for (i, boid) in self.boids.iter_mut().enumerate() {
+            let within = matches.get(i).unwrap();
+
             let (dv_sep, dv_coh, dv_ali) =
-                boid.separation_cohesion_alignment(&tree, &others, &self.parameters);
+                boid.separation_cohesion_alignment(&within, &others, &self.parameters);
 
             let mut dv_mag = SVector::<f64, D>::zeros();
             for i in 0..3 {
