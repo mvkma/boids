@@ -3,9 +3,7 @@ use nalgebra::SVector;
 use rand::RngExt;
 use std::f64;
 
-use crate::D;
-
-pub const BOID_MAX_MAG: f64 = 0.0005;
+use crate::{D, simulation::SimulationParameters};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Boid {
@@ -18,7 +16,7 @@ impl Boid {
         let mut rng = rand::rng();
 
         let position =
-            SVector::<f64, D>::from_iterator((0..D).map(|_| rng.random_range(-1.0..2.0)));
+            SVector::<f64, D>::from_iterator((0..D).map(|_| rng.random_range(-1.0..1.0)));
 
         let mut velocity = SVector::<f64, D>::zeros();
         if D == 2 {
@@ -34,7 +32,7 @@ impl Boid {
         } else {
             velocity.fill_with(|| rand::random_range(-1.0..1.0));
         }
-        velocity.set_magnitude(0.01);
+        velocity.set_magnitude(0.005);
 
         Self { position, velocity }
     }
@@ -43,19 +41,23 @@ impl Boid {
         &mut self,
         tree: &KdTree<f64, D>,
         others: &Vec<Boid>,
-        radius1: f64,
-        radius2: f64,
+        parameters: &SimulationParameters,
     ) -> (SVector<f64, D>, SVector<f64, D>, SVector<f64, D>) {
-        let within =
-            tree.within_unsorted::<SquaredEuclidean>(self.position.as_ref(), radius1 * radius1);
+        let biggest_radius = parameters
+            .radius_sep()
+            .max(parameters.radius_coh())
+            .max(parameters.radius_ali());
 
-        let mut total_sep = SVector::<f64, D>::zeros();
-        let mut total_pos = SVector::<f64, D>::zeros();
-        let mut total_vel = SVector::<f64, D>::zeros();
+        let within =
+            tree.within_unsorted::<SquaredEuclidean>(self.position.as_ref(), biggest_radius);
+
+        let mut dv_sep = SVector::<f64, D>::zeros();
+        let mut dv_coh = SVector::<f64, D>::zeros();
+        let mut dv_ali = SVector::<f64, D>::zeros();
 
         let mut count_sep = 0;
-        let mut count_pos = 0;
-        let mut count_vel = 0;
+        let mut count_coh = 0;
+        let mut count_ali = 0;
 
         for neighbor in within.iter() {
             if neighbor.distance < 1e-10 {
@@ -63,35 +65,42 @@ impl Boid {
             }
 
             let other = &others[neighbor.item as usize];
+            let dist = neighbor.distance.sqrt();
 
-            if neighbor.distance < radius2 * radius2 {
-                let mut diff = self.position - other.position;
-                diff.set_magnitude(neighbor.distance.sqrt().recip());
+            if dist < parameters.radius_sep() {
+                let diff = (self.position - other.position).normalize();
 
-                total_sep += diff;
+                dv_sep += diff;
                 count_sep += 1;
-
-                total_vel += other.velocity;
-                count_vel += 1;
             }
 
-            total_pos += other.position;
-            count_pos += 1;
+            if dist < parameters.radius_ali() {
+                dv_ali += other.velocity;
+                count_ali += 1;
+            }
+
+            if dist < parameters.radius_coh() {
+                dv_coh += other.position;
+                count_coh += 1;
+            }
         }
 
         if count_sep > 0 {
-            total_sep.set_magnitude(BOID_MAX_MAG);
+            // total_sep.set_magnitude(BOID_MAX_MAG);
         }
 
-        if count_pos > 0 {
-            total_pos = total_pos / count_pos as f64 - self.position;
-            total_pos.set_magnitude(BOID_MAX_MAG);
+        if count_coh > 0 {
+            dv_coh = dv_coh / count_coh as f64 - self.position;
+            // total_pos.set_magnitude(BOID_MAX_MAG);
         }
 
-        if count_vel > 0 {
-            total_vel.set_magnitude(BOID_MAX_MAG);
+        if count_ali > 0 {
+            // total_vel.set_magnitude(BOID_MAX_MAG);
+            dv_ali = dv_ali / count_ali as f64 - self.velocity;
         }
 
-        (total_sep, total_pos, total_vel)
+        // console::log_4(&count_sep.into(), &count_coh.into(), &count_ali.into(), &skipped.into());
+
+        (dv_sep, dv_coh, dv_ali)
     }
 }

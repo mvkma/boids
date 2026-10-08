@@ -67,16 +67,23 @@ function run3D(memory, simulation) {
         simulation: {
             numBoids: simulation.num_boids(),
             weightSep: initialSimulationParameters.weight_sep,
-            weightPos: initialSimulationParameters.weight_pos,
-            weightVel: initialSimulationParameters.weight_vel,
+            weightCoh: initialSimulationParameters.weight_coh,
+            weightAli: initialSimulationParameters.weight_ali,
             weightMag: initialSimulationParameters.weight_mag,
             maxVelocity: initialSimulationParameters.max_velocity,
-            radius1: initialSimulationParameters.radius1,
-            radius2: initialSimulationParameters.radius2,
+            radiusSep: initialSimulationParameters.radius_sep,
+            radiusCoh: initialSimulationParameters.radius_coh,
+            radiusAli: initialSimulationParameters.radius_ali,
             reset: function () {
                 const params = new SimulationParameters();
                 simulation.set_parameters(params);
                 simulationFolder.reset();
+            },
+            randomizePositions: function () {
+                simulation.randomize_positions();
+            },
+            randomizeVelocities: function () {
+                simulation.randomize_velocities();
             }
         }
     };
@@ -133,29 +140,34 @@ function run3D(memory, simulation) {
         count = value;
         mesh.count = value;
     });
-    simulationFolder.add(parameters.simulation, "weightSep", 0.0, 8.0).onChange(value => {
+    simulationFolder.add(parameters.simulation, "weightSep", -1.0, 1.0).onChange(value => {
         setSimulationParameter("weight_sep", value);
     });
-    simulationFolder.add(parameters.simulation, "weightPos", 0.0, 8.0).onChange(value => {
-        setSimulationParameter("weight_pos", value);
+    simulationFolder.add(parameters.simulation, "weightCoh", -1.0, 1.0).onChange(value => {
+        setSimulationParameter("weight_coh", value);
     });
-    simulationFolder.add(parameters.simulation, "weightVel", 0.0, 8.0).onChange(value => {
-        setSimulationParameter("weight_vel", value);
+    simulationFolder.add(parameters.simulation, "weightAli", -1.0, 1.0).onChange(value => {
+        setSimulationParameter("weight_ali", value);
     });
-    simulationFolder.add(parameters.simulation, "weightMag", 0.0, 8.0).onChange(value => {
+    simulationFolder.add(parameters.simulation, "weightMag", -1.0, 1.0).onChange(value => {
         setSimulationParameter("weight_mag", value);
     });
-    simulationFolder.add(parameters.simulation, "maxVelocity", 0.01, 0.1).onChange(value => {
+    simulationFolder.add(parameters.simulation, "maxVelocity", 0.0, 0.1).onChange(value => {
         setSimulationParameter("max_velocity", value);
     });
-    simulationFolder.add(parameters.simulation, "radius1", 0.0, 1.0).onChange(value => {
-        setSimulationParameter("radius1", value);
+    simulationFolder.add(parameters.simulation, "radiusSep", 0.0, 2.0).onChange(value => {
+        setSimulationParameter("radius_sep", value);
     });
-    simulationFolder.add(parameters.simulation, "radius2", 0.0, 1.0).onChange(value => {
-        setSimulationParameter("radius2", value);
+    simulationFolder.add(parameters.simulation, "radiusCoh", 0.0, 2.0).onChange(value => {
+        setSimulationParameter("radius_coh", value);
+    });
+    simulationFolder.add(parameters.simulation, "radiusAli", 0.0, 2.0).onChange(value => {
+        setSimulationParameter("radius_ali", value);
     });
 
     simulationFolder.add(parameters.simulation, "reset");
+    simulationFolder.add(parameters.simulation, "randomizePositions");
+    simulationFolder.add(parameters.simulation, "randomizeVelocities");
 
     const fullscreenIcon = document.querySelector('#boids-fullscreen-icon');
 
@@ -201,6 +213,7 @@ function run3D(memory, simulation) {
             dummy.position.set(x, y, z);
             dummy.lookAt(x + vx, y + vy, z + vz);
             dummy.rotateX(Math.PI / 2);
+            dummy.position.multiplyScalar(10);
             dummy.updateMatrix();
 
             mesh.setMatrixAt(i, dummy.matrix);
@@ -209,12 +222,19 @@ function run3D(memory, simulation) {
         mesh.instanceMatrix.needsUpdate = true;
 
         if (frame % 300 === 0) {
-            magnetPosition = new Float64Array(
-                memory.buffer,
-                simulation.get_magnet(),
-                3,
-            );
-            magnetMesh.position.set(...magnetPosition);
+            for (let i = 0; i < 3; i++) {
+                magnetPosition = new Float64Array(
+                    memory.buffer,
+                    simulation.get_magnet(i),
+                    3,
+                );
+                dummy.position.set(...magnetPosition);
+                dummy.position.multiplyScalar(10);
+                dummy.updateMatrix();
+                magnetMesh.setMatrixAt(i, dummy.matrix);
+            }
+
+            magnetMesh.instanceMatrix.needsUpdate = true;
         }
 
         const time = performance.now() * 0.0001;
@@ -284,7 +304,9 @@ function run3D(memory, simulation) {
         const magnetGeometry = new THREE.SphereGeometry( 1.0, 32, 16 );
         magnetGeometry.scale(0.19, 0.19, 0.19);
 
-        magnetMesh = new THREE.Mesh(magnetGeometry, magnetMaterial);
+        magnetMesh = new THREE.InstancedMesh(magnetGeometry, magnetMaterial, 3);
+        magnetMesh.count = 3;
+        magnetMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         magnetMesh.castShadow = true;
         scene.add(magnetMesh);
 
@@ -457,7 +479,7 @@ async function run() {
     const module = await init();
 
     const memory = module.memory;
-    const simulation = Simulation.new(1.0, 1500);
+    const simulation = Simulation.new(1.0, 500);
 
     // run2D(memory, simulation);
     run3D(memory, simulation);

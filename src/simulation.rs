@@ -4,7 +4,7 @@ use std::fmt;
 use wasm_bindgen::prelude::*;
 
 use crate::D;
-use crate::boid::{BOID_MAX_MAG, Boid};
+use crate::boid::Boid;
 
 #[wasm_bindgen]
 #[derive(Debug)]
@@ -12,6 +12,7 @@ pub struct Simulation {
     dt: f64,
     boids: Vec<Boid>,
     magnet: SVector<f64, D>,
+    magnets: Vec<SVector<f64, D>>,
     frame: u64,
     parameters: SimulationParameters,
 }
@@ -20,24 +21,26 @@ pub struct Simulation {
 #[derive(Clone, Copy, Debug)]
 pub struct SimulationParameters {
     weight_sep: f64,
-    weight_pos: f64,
-    weight_vel: f64,
+    weight_coh: f64,
+    weight_ali: f64,
     weight_mag: f64,
     max_velocity: f64,
-    radius1: f64,
-    radius2: f64,
+    radius_sep: f64,
+    radius_coh: f64,
+    radius_ali: f64,
 }
 
 impl Default for SimulationParameters {
     fn default() -> Self {
         Self {
-            weight_sep: 5.5,
-            weight_pos: 0.3,
-            weight_vel: 1.0,
-            weight_mag: 10.0 * BOID_MAX_MAG,
-            max_velocity: 0.04,
-            radius1: 0.4,
-            radius2: 0.1,
+            weight_sep: 0.002,
+            weight_coh: 0.008,
+            weight_ali: 0.06,
+            weight_mag: 0.00001,
+            max_velocity: 0.005,
+            radius_sep: 0.01,
+            radius_coh: 0.05,
+            radius_ali: 0.05,
         }
     }
 }
@@ -60,23 +63,23 @@ impl SimulationParameters {
     }
 
     #[wasm_bindgen(getter)]
-    pub fn weight_pos(&self) -> f64 {
-        self.weight_pos
+    pub fn weight_coh(&self) -> f64 {
+        self.weight_coh
     }
 
     #[wasm_bindgen(setter)]
-    pub fn set_weight_pos(&mut self, weight: f64) {
-        self.weight_pos = weight
+    pub fn set_weight_coh(&mut self, weight: f64) {
+        self.weight_coh = weight
     }
 
     #[wasm_bindgen(getter)]
-    pub fn weight_vel(&self) -> f64 {
-        self.weight_vel
+    pub fn weight_ali(&self) -> f64 {
+        self.weight_ali
     }
 
     #[wasm_bindgen(setter)]
-    pub fn set_weight_vel(&mut self, weight: f64) {
-        self.weight_vel = weight
+    pub fn set_weight_ali(&mut self, weight: f64) {
+        self.weight_ali = weight
     }
 
     #[wasm_bindgen(getter)]
@@ -100,23 +103,33 @@ impl SimulationParameters {
     }
 
     #[wasm_bindgen(getter)]
-    pub fn radius1(&self) -> f64 {
-        self.radius1
+    pub fn radius_sep(&self) -> f64 {
+        self.radius_sep
     }
 
     #[wasm_bindgen(setter)]
-    pub fn set_radius1(&mut self, radius: f64) {
-        self.radius1 = radius
+    pub fn set_radius_sep(&mut self, radius: f64) {
+        self.radius_sep = radius
     }
 
     #[wasm_bindgen(getter)]
-    pub fn radius2(&self) -> f64 {
-        self.radius2
+    pub fn radius_coh(&self) -> f64 {
+        self.radius_coh
     }
 
     #[wasm_bindgen(setter)]
-    pub fn set_radius2(&mut self, radius: f64) {
-        self.radius2 = radius
+    pub fn set_radius_coh(&mut self, radius: f64) {
+        self.radius_coh = radius
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn radius_ali(&self) -> f64 {
+        self.radius_ali
+    }
+
+    #[wasm_bindgen(setter)]
+    pub fn set_radius_ali(&mut self, radius: f64) {
+        self.radius_ali = radius
     }
 }
 
@@ -124,9 +137,11 @@ impl SimulationParameters {
 impl Simulation {
     pub fn tick(&mut self) {
         if self.frame % 300 == 0 {
-            self.magnet[0] = rand::random_range(-14.0..15.0);
-            self.magnet[1] = rand::random_range(-4.0..5.0);
-            self.magnet[2] = rand::random_range(-14.0..15.0);
+            for i in 0..3 {
+                self.magnets[i][0] = rand::random_range(-1.0..1.0);
+                self.magnets[i][1] = rand::random_range(-0.5..1.5);
+                self.magnets[i][2] = rand::random_range(-1.0..1.0);
+            }
         }
 
         // update positions
@@ -144,35 +159,52 @@ impl Simulation {
                 .map(|(idx, b)| (*b.position.as_ref(), idx as u64)),
         );
 
+        // let mut shown = false;
         for boid in self.boids.iter_mut() {
-            let (total_sep, total_pos, total_vel) = boid.separation_cohesion_alignment(
-                &tree,
-                &others,
-                self.parameters.radius1,
-                self.parameters.radius2,
-            );
-            let mut magnet_direction = self.magnet - boid.position;
-            magnet_direction.try_set_magnitude(magnet_direction.norm().recip(), 1.0e-5);
-            let new_velocity = (boid.velocity
-                + self.parameters.weight_sep * total_sep
-                + self.parameters.weight_pos * total_pos
-                + self.parameters.weight_vel * total_vel
-                + self.parameters.weight_mag * magnet_direction.cap_magnitude(0.11))
-            .cap_magnitude(self.parameters.max_velocity);
+            let (dv_sep, dv_coh, dv_ali) =
+                boid.separation_cohesion_alignment(&tree, &others, &self.parameters);
+
+            let mut dv_mag = SVector::<f64, D>::zeros();
+            for i in 0..3 {
+                let diff = self.magnets[i] - boid.position;
+                dv_mag += diff / diff.norm().powi(2);
+            }
+
+            let dv_sep_w = self.parameters.weight_sep * dv_sep;
+            let dv_coh_w = self.parameters.weight_coh * dv_coh;
+            let dv_ali_w = self.parameters.weight_ali * dv_ali;
+            let dv_mag_w = self.parameters.weight_mag * dv_mag;
+
+            let dv = dv_sep_w + dv_coh_w + dv_ali_w + dv_mag_w;
+            let new_velocity = (boid.velocity + dv).cap_magnitude(self.parameters.max_velocity);
 
             boid.velocity.set_column(0, &new_velocity);
+
+            // if !shown {
+            //     let dv_norm = dv.norm();
+            //     let velocity_mag = new_velocity.norm();
+            //     console::log_6(
+            //         &format!("{dv_sep_w:.4}").into(),
+            //         &format!("{dv_coh_w:.4}").into(),
+            //         &format!("{dv_ali_w:.4}").into(),
+            //         &format!("{dv_mag_w:.4}").into(),
+            //         &format!("{dv_norm:.4}").into(),
+            //         &format!("{velocity_mag:.4}").into(),
+            //     );
+            //     shown = true;
+            // }
         }
 
         self.frame += 1;
     }
 
-    pub fn set_magnet(&mut self, x: f64, y: f64) {
-        self.magnet[0] = x;
-        self.magnet[1] = y;
+    pub fn set_magnet(&mut self, i: usize, x: f64, y: f64) {
+        self.magnets[i][0] = x;
+        self.magnets[i][1] = y;
     }
 
-    pub fn get_magnet(&self) -> *const f64 {
-        self.magnet.as_ptr()
+    pub fn get_magnet(&self, i: usize) -> *const f64 {
+        self.magnets[i].as_ptr()
     }
 
     pub fn num_boids(&self) -> usize {
@@ -195,15 +227,37 @@ impl Simulation {
         self.boids.resize_with(num_boids, || Boid::new());
     }
 
+    pub fn randomize_positions(&mut self) {
+        for boid in self.boids.iter_mut() {
+            for i in 0..D {
+                boid.position[i] = rand::random_range(-1.0..1.0);
+            }
+        }
+    }
+
+    pub fn randomize_velocities(&mut self) {
+        for boid in self.boids.iter_mut() {
+            for i in 0..D {
+                boid.velocity[i] = rand::random_range(-1.0..1.0);
+            }
+            boid.velocity
+                .set_magnitude(rand::random_range(0.0..self.parameters.max_velocity));
+        }
+    }
+
     pub fn new(dt: f64, num_boids: usize) -> Self {
         let boids = (0..num_boids).map(|_| Boid::new()).collect();
         let magnet = SVector::<f64, D>::identity() * 0.5;
+        let magnets = (0..3)
+            .map(|_| SVector::<f64, D>::identity() * 0.5)
+            .collect();
         let parameters = SimulationParameters::default();
 
         Simulation {
             dt,
             boids,
             magnet,
+            magnets,
             frame: 0,
             parameters,
         }

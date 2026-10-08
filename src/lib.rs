@@ -1,7 +1,6 @@
 extern crate nalgebra as na;
 
 use wasm_bindgen::prelude::*;
-use web_sys::console;
 
 mod simulation;
 mod boid;
