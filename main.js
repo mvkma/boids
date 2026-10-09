@@ -5,14 +5,11 @@ import Stats from 'stats-gl';
 
 //import * as THREE from 'three/webgpu';
 import * as THREE from 'three';
-import { mix, range, normalWorld, oscSine, time } from 'three/tsl';
 
 import { Inspector } from 'three/addons/inspector/Inspector.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Water } from 'three/addons/objects/Water.js';
 import { Sky } from 'three/addons/objects/Sky.js';
-
-const D = 2;
 
 function run3D(memory, simulation) {
     const canvas = document.querySelector("#canvas");
@@ -22,7 +19,7 @@ function run3D(memory, simulation) {
 
     let count = simulation.num_boids();
 
-    let camera, scene, renderer, controls;
+    let camera, scene, renderer;
     let mesh;
     let magnetMesh;
     let water, sky;
@@ -150,28 +147,28 @@ function run3D(memory, simulation) {
         count = value;
         mesh.count = value;
     });
-    simulationFolder.add(parameters.simulation, "weightSep", -1.0, 1.0).onChange(value => {
+    simulationFolder.add(parameters.simulation, "weightSep", -0.1, 0.1).onChange(value => {
         setSimulationParameter("weight_sep", value);
     });
-    simulationFolder.add(parameters.simulation, "weightCoh", -1.0, 1.0).onChange(value => {
+    simulationFolder.add(parameters.simulation, "weightCoh", -0.1, 0.1).onChange(value => {
         setSimulationParameter("weight_coh", value);
     });
-    simulationFolder.add(parameters.simulation, "weightAli", -1.0, 1.0).onChange(value => {
+    simulationFolder.add(parameters.simulation, "weightAli", -0.1, 0.1).onChange(value => {
         setSimulationParameter("weight_ali", value);
     });
-    simulationFolder.add(parameters.simulation, "weightMag", -1.0, 1.0).onChange(value => {
+    simulationFolder.add(parameters.simulation, "weightMag", -0.01, 0.01).onChange(value => {
         setSimulationParameter("weight_mag", value);
     });
-    simulationFolder.add(parameters.simulation, "maxVelocity", 0.0, 0.1).onChange(value => {
+    simulationFolder.add(parameters.simulation, "maxVelocity", 0.0, 0.01).onChange(value => {
         setSimulationParameter("max_velocity", value);
     });
-    simulationFolder.add(parameters.simulation, "radiusSep", 0.0, 2.0).onChange(value => {
+    simulationFolder.add(parameters.simulation, "radiusSep", 0.0, 1.0).onChange(value => {
         setSimulationParameter("radius_sep", value);
     });
-    simulationFolder.add(parameters.simulation, "radiusCoh", 0.0, 2.0).onChange(value => {
+    simulationFolder.add(parameters.simulation, "radiusCoh", 0.0, 1.0).onChange(value => {
         setSimulationParameter("radius_coh", value);
     });
-    simulationFolder.add(parameters.simulation, "radiusAli", 0.0, 2.0).onChange(value => {
+    simulationFolder.add(parameters.simulation, "radiusAli", 0.0, 1.0).onChange(value => {
         setSimulationParameter("radius_ali", value);
     });
     simulationFolder.add(parameters.simulation, "boxSizeMag", 0.0, 4.0).onChange(value => {
@@ -274,7 +271,7 @@ function run3D(memory, simulation) {
 				//renderer = new THREE.WebGPURenderer( { antialias: true } );
 				renderer = new THREE.WebGLRenderer( { antialias: true, canvas: canvas } );
 				renderer.shadowMap.enabled = true;
-				renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+				renderer.shadowMap.type = THREE.PCFShadowMap;
         renderer.setClearColor(new THREE.Color(0x000000));
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(width, height);
@@ -408,7 +405,7 @@ function run3D(memory, simulation) {
 				scene.add(sky);
 
         const gui = renderer.inspector.createParameters('Settings');
-        controls = new OrbitControls(camera, renderer.domElement);
+        const controls = new OrbitControls(camera, renderer.domElement);
     }
 
     init();
@@ -424,7 +421,7 @@ function run2D(memory, simulation) {
             (x - 0.5) * canvas.width / 16 + canvas.width / 2,
             (y - 0.5) * canvas.height / 16 + canvas.height / 2,
         ];
-    }
+    };
 
     ctx.fillStyle = "lightblue";
 
@@ -458,7 +455,7 @@ function run2D(memory, simulation) {
             const [bx, by] = toCanvasCoordinates(x - 5 * vx, y - 5 * vy);
             const r = 1.5;
 
-            ctx.moveTo(cx, cy)
+            ctx.moveTo(cx, cy);
             ctx.arc(cx - r, cy, r, 0.0, 2.0 * Math.PI);
             ctx.moveTo(bx, by);
             ctx.lineTo(cx - r, cy);
