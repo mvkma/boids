@@ -48,7 +48,10 @@ function run3D(memory, simulation) {
         visual: {
             fov: 75,
             timeScale: 0.5,
+            fogDensity: 0.02,
+            fogColor: 0x241f31,
             axesHelper: false,
+            rotate: true,
             paused: false,
         },
         water: {
@@ -57,10 +60,10 @@ function run3D(memory, simulation) {
         },
         sky: {
             turbidity: 1,
-            rayleigh: 1,
+            rayleigh: 4,
             mieCoefficient: 0.005,
             mieDirectionalG: 0.9,
-            cloudCoverage: 0.5,
+            cloudCoverage: 0.2,
             cloudDensity: 0.7,
             cloudElevation: 0.5,
         },
@@ -99,8 +102,14 @@ function run3D(memory, simulation) {
     visualFolder.add(parameters.visual, "axesHelper").onChange(value => {
         axesHelper.visible = value;
     });
-    visualFolder.add(parameters.visual, "paused").onChange(value => {
+    visualFolder.add(parameters.visual, "fogDensity", 0.0, 0.03).onChange(value => {
+        scene.fog.density = value;
     });
+    visualFolder.addColor(parameters.visual, "fogColor").onChange(value => {
+        scene.fog.color = new THREE.Color(value);
+    });
+    visualFolder.add(parameters.visual, "rotate");
+    visualFolder.add(parameters.visual, "paused");
 
     const waterFolder = gui.addFolder("water");
     waterFolder.add(parameters.water, "distortionScale", 0, 20).onChange(value => {
@@ -249,6 +258,11 @@ function run3D(memory, simulation) {
 
         stats.update();
 
+        if (parameters.visual.rotate) {
+            camera.position.applyAxisAngle(camera.up, Math.PI / 1000);
+            camera.lookAt(0, 0, 0);
+        }
+
         frame += 1;
     }
 
@@ -271,11 +285,13 @@ function run3D(memory, simulation) {
         stats.init(renderer);
 
         camera = new THREE.PerspectiveCamera(parameters.visual.fov, width / height, 0.001, 100);
-        camera.position.set(20, 15, -20);
+        camera.far = 1000;
+        camera.near = 0.1;
+        camera.position.set(15, 18, -15);
         camera.updateMatrix();
 
         scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x333333, 0.020);
+        scene.fog = new THREE.FogExp2(parameters.visual.fogColor, parameters.visual.fogDensity);
 
         const material = new THREE.MeshStandardMaterial();
         material.emissive = new THREE.Color("#ffffff");
