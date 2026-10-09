@@ -1,0 +1,25 @@
+{
+  "name": "boids",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+      "build": "esbuild main.js --bundle --minify --loader:.wasm=file --loader:.jpg=file --format=esm --sourcemap --outfile=build/boids.js --metafile=build/meta.json",
+      "dev": "esbuild main.js --bundle --minify --loader:.wasm=file --loader:.jpg=file --format=esm --sourcemap --outfile=build/boids.js --metafile=build/meta.json --servedir=."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.33.0",
+  "type": "module",
+  "devDependencies": {
+    "@types/three": "^0.186.0",
+    "esbuild": "^0.28.2"
+  },
+  "dependencies": {
+    "boids-wasm": "link:pkg",
+    "lil-gui": "^0.21.0",
+    "stats-gl": "^4.2.3",
+    "three": "^0.186.1"
+  }
+}

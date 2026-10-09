@@ -1,4 +1,8 @@
-import init, { Simulation, SimulationParameters } from './pkg/boids.js';
+import init, { Simulation, SimulationParameters } from 'boids-wasm';
+
+import wasmUrl from "boids-wasm/boids_wasm_bg.wasm";
+
+import waterNormals from "./assets/img/waternormals.jpg";
 
 import GUI from 'lil-gui';
 import Stats from 'stats-gl';
@@ -6,7 +10,7 @@ import Stats from 'stats-gl';
 //import * as THREE from 'three/webgpu';
 import * as THREE from 'three';
 
-import { Inspector } from 'three/addons/inspector/Inspector.js';
+// import { Inspector } from 'three/addons/inspector/Inspector.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Water } from 'three/addons/objects/Water.js';
 import { Sky } from 'three/addons/objects/Sky.js';
@@ -278,7 +282,7 @@ function run3D(memory, simulation) {
         renderer.toneMapping = THREE.NeutralToneMapping;
 				renderer.toneMappingExposure = 0.5;
         renderer.setAnimationLoop(animate);
-        renderer.inspector = new Inspector();
+        // renderer.inspector = new Inspector();
         stats.init(renderer);
 
         camera = new THREE.PerspectiveCamera(parameters.visual.fov, width / height, 0.001, 100);
@@ -375,16 +379,18 @@ function run3D(memory, simulation) {
                 textureWidth: 512,
                 textureHeight: 512,
 						    sunDirection: (new THREE.Vector3()).copy(directionalLight.position).normalize(),
-                waterNormals: new THREE.TextureLoader().load( './assets/img/waternormals.jpg', function ( texture ) {
+                waterNormals: new THREE.TextureLoader().load(
+                    new URL(waterNormals, import.meta.url),
+                    function (texture) {
 
-							      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
 
-						    } ),
-						    sunColor: 0xffffff,
-						    waterColor: 0x001e0f,
-						    distortionScale: parameters.water.distortionScale,
-						    fog: scene.fog !== undefined
-					  }
+                    }),
+                sunColor: 0xffffff,
+                waterColor: 0x001e0f,
+                distortionScale: parameters.water.distortionScale,
+                fog: scene.fog !== undefined
+            }
         );
 
         water.material.uniforms['size'].value = parameters.water.size;
@@ -404,7 +410,7 @@ function run3D(memory, simulation) {
 				sky.material.uniforms['cloudElevation'].value = parameters.sky.cloudElevation;
 				scene.add(sky);
 
-        const gui = renderer.inspector.createParameters('Settings');
+        // const gui = renderer.inspector.createParameters('Settings');
         const controls = new OrbitControls(camera, renderer.domElement);
     }
 
@@ -493,7 +499,9 @@ function run2D(memory, simulation) {
 }
 
 async function run() {
-    const module = await init();
+    const module = await init({
+        module_or_path: new URL(wasmUrl, import.meta.url),
+    });
 
     const memory = module.memory;
     const simulation = Simulation.new(1.0, 500);
