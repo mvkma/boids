@@ -2,7 +2,6 @@ use kiddo::ImmutableKdTree;
 use kiddo::dist::SquaredEuclidean;
 use nalgebra::SVector;
 use std::fmt;
-use std::num::NonZero;
 use wasm_bindgen::prelude::*;
 
 use crate::D;
@@ -157,7 +156,8 @@ impl Simulation {
         let positions: Vec<[f64; 3]> = others.iter().map(|b| *b.position.as_ref()).collect();
         let tree = ImmutableKdTree::<f64, D>::new_from_slice(&positions).unwrap();
 
-        let biggest_radius = self.parameters
+        let biggest_radius = self
+            .parameters
             .radius_sep()
             .max(self.parameters.radius_coh())
             .max(self.parameters.radius_ali());
@@ -168,7 +168,6 @@ impl Simulation {
             .unsorted()
             .execute();
 
-        // let mut shown = false;
         for (i, boid) in self.boids.iter_mut().enumerate() {
             let within = matches.get(i).unwrap();
 
@@ -190,20 +189,6 @@ impl Simulation {
             let new_velocity = (boid.velocity + dv).cap_magnitude(self.parameters.max_velocity);
 
             boid.velocity.set_column(0, &new_velocity);
-
-            // if !shown {
-            //     let dv_norm = dv.norm();
-            //     let velocity_mag = new_velocity.norm();
-            //     console::log_6(
-            //         &format!("{dv_sep_w:.4}").into(),
-            //         &format!("{dv_coh_w:.4}").into(),
-            //         &format!("{dv_ali_w:.4}").into(),
-            //         &format!("{dv_mag_w:.4}").into(),
-            //         &format!("{dv_norm:.4}").into(),
-            //         &format!("{velocity_mag:.4}").into(),
-            //     );
-            //     shown = true;
-            // }
         }
 
         self.frame += 1;
