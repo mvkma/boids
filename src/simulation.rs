@@ -29,6 +29,7 @@ pub struct SimulationParameters {
     radius_sep: f64,
     radius_coh: f64,
     radius_ali: f64,
+    box_size_mag: f64,
 }
 
 impl Default for SimulationParameters {
@@ -42,6 +43,7 @@ impl Default for SimulationParameters {
             radius_sep: 0.01,
             radius_coh: 0.05,
             radius_ali: 0.05,
+            box_size_mag: 1.0,
         }
     }
 }
@@ -132,16 +134,27 @@ impl SimulationParameters {
     pub fn set_radius_ali(&mut self, radius: f64) {
         self.radius_ali = radius
     }
+
+    #[wasm_bindgen(getter)]
+    pub fn box_size_mag(&self) -> f64 {
+        self.box_size_mag
+    }
+
+    #[wasm_bindgen(setter)]
+    pub fn set_box_size_mag(&mut self, radius: f64) {
+        self.box_size_mag = radius
+    }
 }
 
 #[wasm_bindgen]
 impl Simulation {
     pub fn tick(&mut self) {
         if self.frame % 300 == 0 {
+            let s = self.parameters.box_size_mag;
             for i in 0..3 {
-                self.magnets[i][0] = rand::random_range(-1.0..1.0);
-                self.magnets[i][1] = rand::random_range(-0.5..1.5);
-                self.magnets[i][2] = rand::random_range(-1.0..1.0);
+                self.magnets[i][0] = rand::random_range(-s..s);
+                self.magnets[i][1] = rand::random_range(-0.5..s);
+                self.magnets[i][2] = rand::random_range(-s..s);
             }
         }
 

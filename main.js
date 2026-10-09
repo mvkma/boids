@@ -74,6 +74,7 @@ function run3D(memory, simulation) {
             radiusSep: initialSimulationParameters.radius_sep,
             radiusCoh: initialSimulationParameters.radius_coh,
             radiusAli: initialSimulationParameters.radius_ali,
+            boxSizeMag: initialSimulationParameters.box_size_mag,
             reset: function () {
                 const params = new SimulationParameters();
                 simulation.set_parameters(params);
@@ -163,6 +164,9 @@ function run3D(memory, simulation) {
     });
     simulationFolder.add(parameters.simulation, "radiusAli", 0.0, 2.0).onChange(value => {
         setSimulationParameter("radius_ali", value);
+    });
+    simulationFolder.add(parameters.simulation, "boxSizeMag", 0.0, 4.0).onChange(value => {
+        setSimulationParameter("box_size_mag", value);
     });
 
     simulationFolder.add(parameters.simulation, "reset");
