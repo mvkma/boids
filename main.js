@@ -197,7 +197,7 @@ function run3D(memory, simulation) {
 
     async function render() {
         if (!parameters.visual.paused) {
-            simulation.tick();
+            await simulation.tick();
         }
         const stride = 6;
 
