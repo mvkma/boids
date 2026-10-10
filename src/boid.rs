@@ -1,4 +1,4 @@
-use kiddo::{ImmutableKdTree, QueryResultItem, SquaredEuclidean};
+use kiddo::QueryResultItem;
 use nalgebra::SVector;
 use rand::RngExt;
 use std::f64;
@@ -43,7 +43,6 @@ impl Boid {
         others: &Vec<Boid>,
         parameters: &SimulationParameters,
     ) -> (SVector<f64, D>, SVector<f64, D>, SVector<f64, D>) {
-
         let mut dv_sep = SVector::<f64, D>::zeros();
         let mut dv_coh = SVector::<f64, D>::zeros();
         let mut dv_ali = SVector::<f64, D>::zeros();

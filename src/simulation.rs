@@ -12,7 +12,6 @@ use crate::boid::Boid;
 pub struct Simulation {
     dt: f64,
     boids: Vec<Boid>,
-    magnet: SVector<f64, D>,
     magnets: Vec<SVector<f64, D>>,
     frame: u64,
     parameters: SimulationParameters,
@@ -29,6 +28,7 @@ pub struct SimulationParameters {
     radius_sep: f64,
     radius_coh: f64,
     radius_ali: f64,
+    num_mag: usize,
     box_size_mag: f64,
 }
 
@@ -43,6 +43,7 @@ impl Default for SimulationParameters {
             radius_sep: 0.01,
             radius_coh: 0.05,
             radius_ali: 0.05,
+            num_mag: 3,
             box_size_mag: 1.0,
         }
     }
@@ -136,6 +137,16 @@ impl SimulationParameters {
     }
 
     #[wasm_bindgen(getter)]
+    pub fn num_mag(&self) -> usize {
+        self.num_mag
+    }
+
+    #[wasm_bindgen(setter)]
+    pub fn set_num_mag(&mut self, n: usize) {
+        self.num_mag = n
+    }
+
+    #[wasm_bindgen(getter)]
     pub fn box_size_mag(&self) -> f64 {
         self.box_size_mag
     }
@@ -151,7 +162,13 @@ impl Simulation {
     pub fn tick(&mut self) {
         if self.frame % 300 == 0 {
             let s = self.parameters.box_size_mag;
-            for i in 0..3 {
+
+            if self.parameters.num_mag != self.magnets.len() {
+                self.magnets
+                    .resize_with(self.parameters.num_mag, || SVector::<f64, D>::identity());
+            }
+
+            for i in 0..self.magnets.len() {
                 self.magnets[i][0] = rand::random_range(-s..s);
                 self.magnets[i][1] = rand::random_range(-0.5..s);
                 self.magnets[i][2] = rand::random_range(-s..s);
@@ -166,7 +183,7 @@ impl Simulation {
 
         // update velocities
         let others = self.boids.clone();
-        let positions: Vec<[f64; 3]> = others.iter().map(|b| *b.position.as_ref()).collect();
+        let positions: Vec<[f64; D]> = others.iter().map(|b| *b.position.as_ref()).collect();
         let tree = ImmutableKdTree::<f64, D>::new_from_slice(&positions).unwrap();
 
         let biggest_radius = self
@@ -188,7 +205,7 @@ impl Simulation {
                 boid.separation_cohesion_alignment(&within, &others, &self.parameters);
 
             let mut dv_mag = SVector::<f64, D>::zeros();
-            for i in 0..3 {
+            for i in 0..self.magnets.len() {
                 let diff = self.magnets[i] - boid.position;
                 dv_mag += diff / diff.norm().powi(2);
             }
@@ -207,13 +224,12 @@ impl Simulation {
         self.frame += 1;
     }
 
-    pub fn set_magnet(&mut self, i: usize, x: f64, y: f64) {
-        self.magnets[i][0] = x;
-        self.magnets[i][1] = y;
+    pub fn num_magnets(&self) -> usize {
+        self.magnets.len()
     }
 
-    pub fn get_magnet(&self, i: usize) -> *const f64 {
-        self.magnets[i].as_ptr()
+    pub fn get_magnets(&self) -> *const SVector<f64, D> {
+        self.magnets.as_ptr()
     }
 
     pub fn num_boids(&self) -> usize {
@@ -256,16 +272,14 @@ impl Simulation {
 
     pub fn new(dt: f64, num_boids: usize) -> Self {
         let boids = (0..num_boids).map(|_| Boid::new()).collect();
-        let magnet = SVector::<f64, D>::identity() * 0.5;
-        let magnets = (0..3)
+        let parameters = SimulationParameters::default();
+        let magnets = (0..parameters.num_mag)
             .map(|_| SVector::<f64, D>::identity() * 0.5)
             .collect();
-        let parameters = SimulationParameters::default();
 
         Simulation {
             dt,
             boids,
-            magnet,
             magnets,
             frame: 0,
             parameters,
@@ -281,10 +295,9 @@ impl fmt::Display for Simulation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Simulation {{ dt: {}, num_boids: {}, magnet: {} }}\n",
+            "Simulation {{ dt: {}, num_boids: {} }}\n",
             self.dt,
             self.boids.len(),
-            self.magnet,
         )?;
         for boid in self.boids.iter() {
             write!(f, "  - {:?}\n", boid)?;

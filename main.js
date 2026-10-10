@@ -32,7 +32,6 @@ function run3D(memory, simulation) {
     const dummy = new THREE.Object3D();
 
     let frame = 0;
-    let magnetPosition = new Float64Array([0, 0, 0]);
 
     const stats = new Stats({ trackGPU: true });
     document.querySelector("#boids-stats").appendChild(stats.dom);
@@ -78,6 +77,7 @@ function run3D(memory, simulation) {
             radiusSep: initialSimulationParameters.radius_sep,
             radiusCoh: initialSimulationParameters.radius_coh,
             radiusAli: initialSimulationParameters.radius_ali,
+            numMag: initialSimulationParameters.num_mag,
             boxSizeMag: initialSimulationParameters.box_size_mag,
             reset: function () {
                 const params = new SimulationParameters();
@@ -111,6 +111,7 @@ function run3D(memory, simulation) {
     });
     visualFolder.add(parameters.visual, "rotate");
     visualFolder.add(parameters.visual, "paused");
+    visualFolder.close();
 
     const waterFolder = gui.addFolder("water");
     waterFolder.add(parameters.water, "distortionScale", 0, 20).onChange(value => {
@@ -175,6 +176,9 @@ function run3D(memory, simulation) {
     simulationFolder.add(parameters.simulation, "radiusAli", 0.0, 1.0).onChange(value => {
         setSimulationParameter("radius_ali", value);
     });
+    simulationFolder.add(parameters.simulation, "numMag", 0.0, 20.0, 1).onChange(value => {
+        setSimulationParameter("num_mag", value);
+    });
     simulationFolder.add(parameters.simulation, "boxSizeMag", 0.0, 4.0).onChange(value => {
         setSimulationParameter("box_size_mag", value);
     });
@@ -236,18 +240,22 @@ function run3D(memory, simulation) {
         mesh.instanceMatrix.needsUpdate = true;
 
         if (frame % 300 === 0) {
-            for (let i = 0; i < 3; i++) {
-                magnetPosition = new Float64Array(
-                    memory.buffer,
-                    simulation.get_magnet(i),
-                    3,
-                );
-                dummy.position.set(...magnetPosition);
+            const stride = 3;
+            const numMagnets = simulation.num_magnets();
+            const magnetPositions = new Float64Array(
+                memory.buffer,
+                simulation.get_magnets(),
+                numMagnets * stride,
+            );
+
+            for (let i = 0; i < numMagnets; i++) {
+                const [x, y, z] = magnetPositions.slice(stride * i, stride * (i + 1));
+                dummy.position.set(x, y, z);
                 dummy.position.multiplyScalar(10);
                 dummy.updateMatrix();
                 magnetMesh.setMatrixAt(i, dummy.matrix);
             }
-
+            magnetMesh.count = numMagnets;
             magnetMesh.instanceMatrix.needsUpdate = true;
         }
 
@@ -325,8 +333,8 @@ function run3D(memory, simulation) {
         const magnetGeometry = new THREE.SphereGeometry( 1.0, 32, 16 );
         magnetGeometry.scale(0.19, 0.19, 0.19);
 
-        magnetMesh = new THREE.InstancedMesh(magnetGeometry, magnetMaterial, 3);
-        magnetMesh.count = 3;
+        magnetMesh = new THREE.InstancedMesh(magnetGeometry, magnetMaterial, 20);
+        magnetMesh.count = parameters.simulation.numMag;
         magnetMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         magnetMesh.castShadow = true;
         scene.add(magnetMesh);
