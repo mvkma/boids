@@ -29,3 +29,7 @@ Run `pnpm run dev`.
 
 - Craig Reynolds: [Flocks, herds and schools: A distributed behavioral model](https://doi.org/10.1145/37401.37406) (1987)
 - Norihiro Maruyama, Daichi Saito, Yasuhiro Hashimoto, Takashi Ikegami: [Dynamic organization of flocking behaviors in a large‑scale boids model](https://doi.org/10.1007/s42001-019-00037-9) (2019)
+
+## License
+
+GNU General Public License v3.0 or later. See [COPYING] for the full text.
