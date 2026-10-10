@@ -94,6 +94,8 @@ function run3D(memory, simulation) {
     };
 
     const gui = new GUI({ container: document.querySelector("#boids-canvas-container") });
+    gui.close();
+
     const visualFolder = gui.addFolder("visual");
     visualFolder.add(parameters.visual, "fov", 30, 150).onChange(value => {
         camera.fov = value;
