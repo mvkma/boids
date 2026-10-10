@@ -32,4 +32,4 @@ Run `pnpm run dev`.
 
 ## License
 
-GNU General Public License v3.0 or later. See [COPYING] for the full text.
+GNU General Public License v3.0 or later. See [COPYING](./COPYING) for the full text.
