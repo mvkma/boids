@@ -15,6 +15,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Water } from 'three/addons/objects/Water.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 
+import { presets } from './presets';
+
 function run3D(memory, simulation) {
     const canvas = document.querySelector("#canvas");
     const width = canvas.width;
@@ -89,11 +91,19 @@ function run3D(memory, simulation) {
             },
             randomizeVelocities: function () {
                 simulation.randomize_velocities();
-            }
+            },
+            logToConsole: function () {
+                console.log(gui.save());
+            },
+            preset: "default",
         }
     };
 
     const gui = new GUI({ container: document.querySelector("#boids-canvas-container") });
+    gui.add(parameters.simulation, "preset", Object.keys(presets)).onChange((value) => {
+        gui.load(presets[value]);
+    })
+    gui.add(parameters.simulation, "logToConsole");
     gui.close();
 
     const visualFolder = gui.addFolder("visual");
