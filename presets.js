@@ -154,5 +154,57 @@ export const presets = {
                 "folders": {}
             }
         }
+    },
+    "three": {
+        "controllers": {},
+        "folders": {
+            "visual": {
+                "controllers": {
+                    "fov": 75,
+                    "timeScale": 0.5,
+                    "axesHelper": false,
+                    "fogDensity": 0.002,
+                    "fogColor": "#241f31",
+                    "rotate": true,
+                    "paused": false
+                },
+                "folders": {}
+            },
+            "water": {
+                "controllers": {
+                    "distortionScale": 1,
+                    "size": 10
+                },
+                "folders": {}
+            },
+            "sky": {
+                "controllers": {
+                    "turbidity": 1,
+                    "rayleigh": 0,
+                    "mieCoefficient": 0.017,
+                    "mieDirectionalG": 0.619,
+                    "cloudCoverage": 0.693,
+                    "cloudDensity": 0.25,
+                    "cloudElevation": 0.152
+                },
+                "folders": {}
+            },
+            "simulation": {
+                "controllers": {
+                    "numBoids": 2000,
+                    "weightSep": 0.02,
+                    "weightCoh": 0.009,
+                    "weightAli": 0.06,
+                    "weightMag": 0.0001,
+                    "maxVelocity": 0.005,
+                    "radiusSep": 0.03,
+                    "radiusCoh": 0.05,
+                    "radiusAli": 0.15,
+                    "numMag": 6,
+                    "boxSizeMag": 3
+                },
+                "folders": {}
+            }
+        }
     }
 };
