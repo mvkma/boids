@@ -1,6 +1,6 @@
 # Boids 3D
 
-A [Boids](https://en.wikipedia.org/wiki/Boids) simulation in 3D.
+A [Boids](https://en.wikipedia.org/wiki/Boids) simulation in 3D. A live version with a bit more context can be found [here](https://relint.de/boids.html).
 
 ## Requirements
 
